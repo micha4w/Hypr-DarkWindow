@@ -85,7 +85,7 @@ struct ShaderHolder {
 };
 
 inline void initShaders(ShaderHolder& shaders) {
-    GLuint prog                       = createProgram(TEXVERTSRC, TEXFRAGSRCRGBA);
+    GLuint prog                       = createProgram(TEXVERTSRC, TEXFRAGSRCRGBA_DARK);
     shaders.RGBA.program              = prog;
     shaders.RGBA.proj                 = glGetUniformLocation(prog, "proj");
     shaders.RGBA.tex                  = glGetUniformLocation(prog, "tex");
@@ -102,7 +102,7 @@ inline void initShaders(ShaderHolder& shaders) {
     shaders.RGBA.applyTint            = glGetUniformLocation(prog, "applyTint");
     shaders.RGBA.tint                 = glGetUniformLocation(prog, "tint");
 
-    prog                              = createProgram(TEXVERTSRC, TEXFRAGSRCRGBX);
+    prog                              = createProgram(TEXVERTSRC, TEXFRAGSRCRGBX_DARK);
     shaders.RGBX.program              = prog;
     shaders.RGBX.tex                  = glGetUniformLocation(prog, "tex");
     shaders.RGBX.proj                 = glGetUniformLocation(prog, "proj");
@@ -119,7 +119,7 @@ inline void initShaders(ShaderHolder& shaders) {
     shaders.RGBX.applyTint            = glGetUniformLocation(prog, "applyTint");
     shaders.RGBX.tint                 = glGetUniformLocation(prog, "tint");
 
-    prog                             = createProgram(TEXVERTSRC, TEXFRAGSRCEXT);
+    prog                             = createProgram(TEXVERTSRC, TEXFRAGSRCEXT_DARK);
     shaders.EXT.program              = prog;
     shaders.EXT.tex                  = glGetUniformLocation(prog, "tex");
     shaders.EXT.proj                 = glGetUniformLocation(prog, "proj");

@@ -3,60 +3,17 @@
 #include <string>
 #include <format>
 
+#include <hyprland/src/render/shaders/Textures.hpp>
+
+
 inline static constexpr auto DARK_MODE_FUNC = [](const std::string colorVarName) -> std::string {
     return std::format(R"glsl(
         {0} = vec4(1.0 - {0}.r, 1.0 - {0}.g, 1.0 - {0}.b, {0}.a);
-        {0} = vec4(1, 0, 0, 0.5);
     )glsl", colorVarName);
 };
 
-inline static constexpr auto ROUNDED_SHADER_FUNC = [](const std::string colorVarName) -> std::string {
-    return R"glsl(
 
-    // branchless baby!
-    highp vec2 pixCoord = vec2(gl_FragCoord);
-    pixCoord -= topLeft + fullSize * 0.5;
-    pixCoord *= vec2(lessThan(pixCoord, vec2(0.0))) * -2.0 + 1.0;
-    pixCoord -= fullSize * 0.5 - radius;
-
-    if (pixCoord.x + pixCoord.y > radius) {
-
-	    float dist = length(pixCoord);
-
-	    if (dist > radius)
-	        discard;
-
-	    if (primitiveMultisample == 1 && dist > radius - 1.0) {
-	        float distances = 0.0;
-	        distances += float(length(pixCoord + vec2(0.25, 0.25)) < radius);
-	        distances += float(length(pixCoord + vec2(0.75, 0.25)) < radius);
-	        distances += float(length(pixCoord + vec2(0.25, 0.75)) < radius);
-	        distances += float(length(pixCoord + vec2(0.75, 0.75)) < radius);
-
-	        if (distances == 0.0)
-		        discard;
-
-	        distances /= 4.0;
-
-	        )glsl" + colorVarName + R"glsl( = )glsl" + colorVarName + R"glsl( * distances;
-            }
-
-        }
-    )glsl";
-};
-
-inline const std::string TEXVERTSRC = R"glsl(
-uniform mat3 proj;
-attribute vec2 pos;
-attribute vec2 texcoord;
-varying vec2 v_texcoord;
-
-void main() {
-    gl_Position = vec4(proj * vec3(pos, 1.0), 1.0);
-    v_texcoord = texcoord;
-})glsl";
-
-inline const std::string TEXFRAGSRCRGBA = R"glsl(
+inline const std::string TEXFRAGSRCRGBA_DARK = R"glsl(
 precision mediump float;
 varying vec2 v_texcoord; // is in 0-1
 uniform sampler2D tex;
@@ -101,7 +58,7 @@ void main() {
     gl_FragColor = pixColor * alpha;
 })glsl";
 
-inline const std::string TEXFRAGSRCRGBX = R"glsl(
+inline const std::string TEXFRAGSRCRGBX_DARK = R"glsl(
 precision mediump float;
 varying vec2 v_texcoord;
 uniform sampler2D tex;
@@ -143,7 +100,7 @@ void main() {
     gl_FragColor = pixColor * alpha;
 })glsl";
 
-inline const std::string TEXFRAGSRCEXT = R"glsl(
+inline const std::string TEXFRAGSRCEXT_DARK = R"glsl(
 #extension GL_OES_EGL_image_external : require
 
 precision mediump float;
