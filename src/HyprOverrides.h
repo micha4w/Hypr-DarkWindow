@@ -2,13 +2,14 @@
 
 #include <string>
 #include <iostream>
+#include <exception>
 
 #include <hyprland/src/render/OpenGL.hpp>
 
 #include "TexturesDark.h"
 
 
-inline GLuint compileShader(const GLuint& type, std::string src, bool dynamic = false) {
+inline GLuint compileShader(const GLuint& type, std::string src) {
     auto shader = glCreateShader(type);
 
     auto shaderSource = src.c_str();
@@ -21,35 +22,16 @@ inline GLuint compileShader(const GLuint& type, std::string src, bool dynamic = 
     if (!ok) {
         char infoLog[512];
         glGetShaderInfoLog(shader, 512, NULL, infoLog);
-        std::cout << "[ERROR] Shader compilation failed\n" << infoLog << std::endl;
-    }
-
-    if (dynamic) {
-        if (ok == GL_FALSE)
-            return 0;
-    } else {
-        RASSERT(ok != GL_FALSE, "compileShader() failed! GL_COMPILE_STATUS not OK!");
+        std::cerr << "[ERROR] Shader Compiling failed\n" << infoLog << std::endl;
+        throw std::runtime_error(std::string("Shader compilation failed: ") + infoLog);
     }
 
     return shader;
 }
 
-inline GLuint createProgram(const std::string& vert, const std::string& frag, bool dynamic = false) {
-    auto vertCompiled = compileShader(GL_VERTEX_SHADER, vert, dynamic);
-    if (dynamic) {
-        if (vertCompiled == 0)
-            return 0;
-    } else {
-        RASSERT(vertCompiled, "Compiling shader failed. VERTEX NULL! Shader source:\n\n%s", vert.c_str());
-    }
-
-    auto fragCompiled = compileShader(GL_FRAGMENT_SHADER, frag, dynamic);
-    if (dynamic) {
-        if (fragCompiled == 0)
-            return 0;
-    } else {
-        RASSERT(fragCompiled, "Compiling shader failed. FRAGMENT NULL! Shader source:\n\n%s", frag.c_str());
-    }
+inline GLuint createProgram(const std::string& vert, const std::string& frag) {
+    auto vertCompiled = compileShader(GL_VERTEX_SHADER, vert);
+    auto fragCompiled = compileShader(GL_FRAGMENT_SHADER, frag);
 
     auto prog = glCreateProgram();
     glAttachShader(prog, vertCompiled);
@@ -66,13 +48,8 @@ inline GLuint createProgram(const std::string& vert, const std::string& frag, bo
     if (!ok) {
         char infoLog[512];
         glGetShaderInfoLog(prog, 512, NULL, infoLog);
-        std::cout << "[ERROR] Shader linking failed\n" << infoLog << std::endl;
-    }
-    if (dynamic) {
-        if (ok == GL_FALSE)
-            return 0;
-    } else {
-        RASSERT(ok != GL_FALSE, "createProgram() failed! GL_LINK_STATUS not OK!");
+        std::cerr << "[ERROR] Shader linking failed\n" << infoLog << std::endl;
+        std::runtime_error(std::string("Shader linking failed: ") + infoLog);
     }
 
     return prog;
