@@ -8,7 +8,11 @@
 
 inline static constexpr auto DARK_MODE_FUNC = [](const std::string colorVarName) -> std::string {
     return std::format(R"glsl(
-        {0} = vec4(1.0 - {0}.r, 1.0 - {0}.g, 1.0 - {0}.b, {0}.a);
+        // Invert Colors
+        {0}.rgb =  vec3(1.) -.9*{0}.rgb;
+
+        // Invert Hue
+        {0}.rgb = -{0}.rgb + dot(vec3(0.299, 0.587, 0.114), {0}.rgb) * 2.0;
     )glsl", colorVarName);
 };
 
