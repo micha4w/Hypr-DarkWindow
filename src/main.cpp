@@ -42,7 +42,9 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
             eRenderStage renderStage = std::any_cast<eRenderStage>(data);
 
             if (renderStage == eRenderStage::RENDER_PRE_WINDOW)
-                g_WindowInverter.SwapShadersIfNeeded();
+                g_WindowInverter.OnRenderWindowPre();
+            if (renderStage == eRenderStage::RENDER_POST_WINDOW)
+                g_WindowInverter.OnRenderWindowPost();
         }
     );
     HyprlandAPI::registerCallbackDynamic(

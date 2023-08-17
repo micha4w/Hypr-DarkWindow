@@ -17,7 +17,8 @@ public:
     void SetRules(std::vector<SWindowRule>&& rules);
     void Reload();
 
-    void SwapShadersIfNeeded();
+    void OnRenderWindowPre();
+    void OnRenderWindowPost();
     void OnWindowClose(CWindow* window);
 
 private:

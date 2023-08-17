@@ -1,15 +1,26 @@
 #include "WindowInverter.h"
 
 
-void WindowInverter::SwapShadersIfNeeded()
+void WindowInverter::OnRenderWindowPre()
 {
     bool shouldInvert = std::find(m_InvertedWindows.begin(), m_InvertedWindows.end(), g_pHyprOpenGL->m_pCurrentWindow) != m_InvertedWindows.end();
-    if (shouldInvert != m_ShadersSwapped)
+    if (shouldInvert)
     {
         std::swap(m_Shaders.EXT, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shEXT);
         std::swap(m_Shaders.RGBA, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shRGBA);
         std::swap(m_Shaders.RGBX, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shRGBX);
-        m_ShadersSwapped = !m_ShadersSwapped;
+        m_ShadersSwapped = true;
+    }
+}
+
+void WindowInverter::OnRenderWindowPost()
+{
+    if (m_ShadersSwapped)
+    {
+        std::swap(m_Shaders.EXT, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shEXT);
+        std::swap(m_Shaders.RGBA, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shRGBA);
+        std::swap(m_Shaders.RGBX, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shRGBX);
+        m_ShadersSwapped = false;
     }
 }
 
