@@ -82,10 +82,10 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
     g_pConfigManager->m_bForceReload = true;
 
     return {
-        "Hypr-DarkWindow",
+        "hypr-darkwindow",
         "Allows you to set dark mode for only specific Windows",
         "micha4w",
-        "1.0"
+        "1.0.0"
     };
 }
 

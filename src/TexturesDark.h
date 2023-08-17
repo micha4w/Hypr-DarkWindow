@@ -16,9 +16,6 @@ inline static constexpr auto DARK_MODE_FUNC = [](const std::string colorVarName)
         // Invert Hue
         // {0}.rgb = -{0}.rgb + dot(vec3(0.26312, 0.5283, 0.10488), {0}.rgb) * 2.0;
 
-        {0}.rgb = vec3(.88, .9, .92) * {0}.rgb +
-                vec3(1.) - dot(vec3(0.52624, 1.0566, 0.20976), {0}.rgb);
-
     )glsl", colorVarName);
 };
 
