@@ -1,6 +1,8 @@
 # Hypr-DarkWindow
 Hyprland plugin that adds possibility to invert the color of specific windows.
 
+[!example](./res/example.png)
+
 ## Configuration
 This Branch adds config, that use the rulev2 syntax:
 ```conf
