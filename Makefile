@@ -2,12 +2,13 @@
 # make sure that the path above is to the root hl repo directory, NOT src/
 # and that you have ran `make protocols` in the hl dir.
 
+
 all:
 	mkdir -p out
-	$(CXX) -shared -fPIC --no-gnu-unique src/main.cpp -Isrc/ -o out/hypr-darkwindow.so -g `pkg-config --cflags pixman-1 libdrm hyprland` -std=c++2b
+	$(CXX) -shared -fPIC --no-gnu-unique src/*.cpp -Isrc/ -o out/hypr-darkwindow.so -g `pkg-config --cflags pixman-1 libdrm hyprland` -std=c++2b -DWLR_USE_UNSTABLE
 clean:
 	rm -rf out
-load:
+load: unload
 	hyprctl plugin load $(shell pwd)/out/hypr-darkwindow.so
 unload:
 	hyprctl plugin unload $(shell pwd)/out/hypr-darkwindow.so
