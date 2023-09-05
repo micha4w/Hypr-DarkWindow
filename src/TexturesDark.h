@@ -6,15 +6,17 @@
 #include <hyprland/src/render/shaders/Textures.hpp>
 
 
-// [2*x*y for x,y in zip([.299, .587, .114],[.88, .9, .92])] = [0.52624, 1.0566, 0.20976]
-// vec3(0.299, 0.587, 0.114) * vec3(.88, .9, .92) = 0.8963
 inline static constexpr auto DARK_MODE_FUNC = [](const std::string colorVarName) -> std::string {
     return std::format(R"glsl(
         // Invert Colors
-        // {0}.rgb = vec3(1.) - vec3(.88, .9, .92) * {0}.rgb;
+        {0}.rgb = vec3(1.) - vec3(.88, .9, .92) * {0}.rgb;
+        // if (v_texcoord.y > 0.5)
+        //     pixColor.rgb = vec3(1) - pixColor.rgb;
+        // else
+        //     pixColor = vec4(pixColor.a, 0, 0, 0.5);
 
         // Invert Hue
-        // {0}.rgb = -{0}.rgb + dot(vec3(0.26312, 0.5283, 0.10488), {0}.rgb) * 2.0;
+        {0}.rgb = -{0}.rgb + dot(vec3(0.26312, 0.5283, 0.10488), {0}.rgb) * 2.0;
 
     )glsl", colorVarName);
 };
