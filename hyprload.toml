@@ -1,10 +1,10 @@
-[hypr-darkwindow]
-description = "hypr-darkwindow"
+[Hypr-DarkWindow]
+description = "Hypr-DarkWindow"
 version = "1.0.0"
 author = "micha4w"
 
-[hypr-darkwindow.build]
-output = "out/hypr-darkwindow.so"
+[Hypr-DarkWindow.build]
+output = "out/Hypr-DarkWindow.so"
 steps = [
     "make all",
 ]
