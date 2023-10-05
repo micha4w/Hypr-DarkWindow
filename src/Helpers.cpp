@@ -98,7 +98,6 @@ void ShaderHolder::Init()
     RGBA.topLeft              = glGetUniformLocation(prog, "topLeft");
     RGBA.fullSize             = glGetUniformLocation(prog, "fullSize");
     RGBA.radius               = glGetUniformLocation(prog, "radius");
-    RGBA.primitiveMultisample = glGetUniformLocation(prog, "primitiveMultisample");
     RGBA.applyTint            = glGetUniformLocation(prog, "applyTint");
     RGBA.tint                 = glGetUniformLocation(prog, "tint");
 
@@ -115,7 +114,6 @@ void ShaderHolder::Init()
     RGBX.topLeft              = glGetUniformLocation(prog, "topLeft");
     RGBX.fullSize             = glGetUniformLocation(prog, "fullSize");
     RGBX.radius               = glGetUniformLocation(prog, "radius");
-    RGBX.primitiveMultisample = glGetUniformLocation(prog, "primitiveMultisample");
     RGBX.applyTint            = glGetUniformLocation(prog, "applyTint");
     RGBX.tint                 = glGetUniformLocation(prog, "tint");
 
@@ -132,7 +130,6 @@ void ShaderHolder::Init()
     EXT.topLeft              = glGetUniformLocation(prog, "topLeft");
     EXT.fullSize             = glGetUniformLocation(prog, "fullSize");
     EXT.radius               = glGetUniformLocation(prog, "radius");
-    EXT.primitiveMultisample = glGetUniformLocation(prog, "primitiveMultisample");
     EXT.applyTint            = glGetUniformLocation(prog, "applyTint");
     EXT.tint                 = glGetUniformLocation(prog, "tint");
 

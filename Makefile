@@ -15,6 +15,6 @@ unload:
 setup-dev:
 	sudo rm -rf Hyprland
 	git clone --recursive https://github.com/hyprwm/Hyprland	
-	cd Hyprland && git checkout tags/v0.29.1 && sudo make config && make protocols && make debug
+	cd Hyprland && git checkout tags/v0.30.0 && sudo make config && make protocols && make debug
 dev:
 	Hyprland/build/Hyprland

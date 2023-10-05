@@ -39,8 +39,6 @@ uniform float discardAlphaValue;
 uniform int applyTint;
 uniform vec3 tint;
 
-uniform int primitiveMultisample;
-
 void main() {
 
     vec4 pixColor = texture2D(tex, v_texcoord);
@@ -84,8 +82,6 @@ uniform int discardAlphaValue;
 uniform int applyTint;
 uniform vec3 tint;
 
-uniform int primitiveMultisample;
-
 void main() {
 
     if (discardOpaque == 1 && alpha == 1.0)
@@ -128,14 +124,12 @@ uniform int discardAlphaValue;
 uniform int applyTint;
 uniform vec3 tint;
 
-uniform int primitiveMultisample;
-
 void main() {
 
     vec4 pixColor = texture2D(texture0, v_texcoord);
 
     if (discardOpaque == 1 && pixColor[3] * alpha == 1.0)
-	discard;
+        discard;
 
     if (applyTint == 1) {
 	pixColor[0] = pixColor[0] * tint[0];
