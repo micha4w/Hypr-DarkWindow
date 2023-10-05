@@ -151,6 +151,9 @@ void WindowInverter::InvertIfMatches(CWindow* window)
 
 void WindowInverter::ToggleInvert(CWindow* window)
 {
+    if (!window)
+        return;
+
     auto it_window = std::find(m_InvertedWindows.begin(), m_InvertedWindows.end(), window);
     if (it_window == m_InvertedWindows.end())
         m_InvertedWindows.push_back(window);
@@ -160,12 +163,15 @@ void WindowInverter::ToggleInvert(CWindow* window)
         m_InvertedWindows.pop_back();
     }
 
-    auto& forceFullFrames = g_pCompositor->getMonitorFromID(window->m_iMonitorID)->forceFullFrames;
-    if (forceFullFrames < 2)
-        forceFullFrames = 2;
+    auto monitor = g_pCompositor->getMonitorFromID(window->m_iMonitorID);
+    if (!monitor)
+        return;
+
+    if (monitor->forceFullFrames < 2)
+        monitor->forceFullFrames = 2;
 
     // Need this to redraw the monitor?
-    Events::listener_monitorFrame(g_pCompositor->getMonitorFromID(window->m_iMonitorID), nullptr);
+    Events::listener_monitorFrame(monitor, nullptr);
 }
 
 
