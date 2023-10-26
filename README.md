@@ -18,8 +18,19 @@ plugin {
 Also adds 2 Dispatches `invertwindow WINDOW` and `invertactivewindow`
 
 ## Installation
-Confirmed not working on < v0.28.0
-Wokrs on v0.28.0
+Confirmed not working on < v0.28.0  
+Works on v0.28.0
+
+
+Installable using [Hyprload](https://github.com/duckonaut/hyprload)
+```toml
+# hyprload.toml
+plugins = [
+  "micha4w/Hypr-DarkWindow",
+]
+```
+
+
 ```sh
 make all && make load
 ```
