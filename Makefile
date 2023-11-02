@@ -12,9 +12,16 @@ load: unload
 	hyprctl plugin load $(shell pwd)/out/hypr-darkwindow.so
 unload:
 	hyprctl plugin unload $(shell pwd)/out/hypr-darkwindow.so
+
+# use with make setup-dev VERSION=0.31.0
 setup-dev:
 	sudo rm -rf Hyprland
-	git clone --recursive https://github.com/hyprwm/Hyprland	
-	cd Hyprland && git checkout tags/v0.30.0 && sudo make config && make protocols && make debug
+	git clone https://github.com/hyprwm/Hyprland	
+	ifdef VERSION
+		cd Hyprland && git checkout tags/v$(VERSION) && git submodule update --init
+	else
+		cd Hyprland && git submodule update --init
+	endif
+	cd Hyprland && make debug
 dev:
 	Hyprland/build/Hyprland
