@@ -38,7 +38,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 
     HyprlandAPI::registerCallbackDynamic(
         PHANDLE, "render",
-        [&](void* self, std::any data) {
+        [&](void* self, SCallbackInfo&, std::any data) {
             eRenderStage renderStage = std::any_cast<eRenderStage>(data);
 
             if (renderStage == eRenderStage::RENDER_PRE_WINDOW)
@@ -49,14 +49,14 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
     );
     HyprlandAPI::registerCallbackDynamic(
         PHANDLE, "configReloaded",
-        [&](void* self, std::any data) {
+        [&](void* self, SCallbackInfo&, std::any data) {
             g_WindowInverter.SetRules(std::move(g_WindowRulesBuildup));
             g_WindowRulesBuildup = {};
         }
     );
     HyprlandAPI::registerCallbackDynamic(
         PHANDLE, "closeWindow",
-        [&](void* self, std::any data) { 
+        [&](void* self, SCallbackInfo&, std::any data) { 
             g_WindowInverter.OnWindowClose(std::any_cast<CWindow*>(data));
         }
     );
@@ -73,7 +73,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
     {
         HyprlandAPI::registerCallbackDynamic(
             PHANDLE, event,
-            [&](void* self, std::any data) {
+            [&](void* self, SCallbackInfo&, std::any data) {
                 g_WindowInverter.InvertIfMatches(std::any_cast<CWindow*>(data));
             }
         );
@@ -93,3 +93,4 @@ APICALL EXPORT void PLUGIN_EXIT()
 {
     g_WindowInverter.Unload();
 }
+
