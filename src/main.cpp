@@ -1,5 +1,7 @@
 #include "WindowInverter.h"
 
+#include <hyprland/src/SharedDefs.hpp>
+
 
 inline HANDLE PHANDLE = nullptr;
 
@@ -8,18 +10,6 @@ inline WindowInverter g_WindowInverter;
 inline CFunctionHook* g_SetConfigValueHook;
 inline std::vector<SWindowRule> g_WindowRulesBuildup;
 
-
-void hkConfigSetValueSafe(void* thisptr, const std::string& COMMAND, const std::string& VALUE)
-{ 
-    if (COMMAND == "plugin:dark_window:invert")
-    {
-        g_WindowRulesBuildup.push_back(ParseRule(VALUE));
-        // return;
-    }
-
-    using OriginalFunc = void (*)(void*, const std::string&, const std::string&);
-    ((OriginalFunc) g_SetConfigValueHook->m_pOriginal)(thisptr, COMMAND, VALUE);
-}
 
 APICALL EXPORT std::string PLUGIN_API_VERSION()
 {
@@ -32,9 +22,12 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 
     g_WindowInverter.Init();
 
-    static const auto METHODS = HyprlandAPI::findFunctionsByName(PHANDLE, "configSetValueSafe");
-    g_SetConfigValueHook = HyprlandAPI::createFunctionHook(handle, METHODS[0].address, (void*)&hkConfigSetValueSafe);
-    g_SetConfigValueHook->hook();
+    HyprlandAPI::addConfigKeyword(
+        handle, "plugin:dark_window:invert",
+        [&](const std::string& cmd, const std::string& val) {
+            g_WindowRulesBuildup.push_back(ParseRule(val));
+        }
+    );
 
     HyprlandAPI::registerCallbackDynamic(
         PHANDLE, "render",
