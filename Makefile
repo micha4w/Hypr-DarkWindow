@@ -34,7 +34,7 @@ ifeq ("$(wildcard hyprland/$(VERSION))","")
 	git clone https://github.com/hyprwm/Hyprland "hyprland/$(VERSION)"
 	cd "hyprland/$(VERSION)" && git checkout "$(VERSION)" && git submodule update --init
 endif
-	cd "hyprland/$(VERSION)" && make all && make installheaders PREFIX="."
+	cd "hyprland/$(VERSION)" && make all && make installheaders PREFIX="$(pwd)"
 
 dev:
 	Hyprland/build/Hyprland
