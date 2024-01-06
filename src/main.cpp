@@ -23,7 +23,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
     }
 
     HyprlandAPI::addConfigKeyword(
-        handle, "plugin:dark_window:invert",
+        handle, "darkwindow_invert",
         [&](const std::string& cmd, const std::string& val) {
             g_WindowRulesBuildup.push_back(ParseRule(val));
         }

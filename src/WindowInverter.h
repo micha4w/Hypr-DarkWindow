@@ -24,6 +24,7 @@ public:
 private:
     std::vector<SWindowRule> m_InvertWindowRules;
     std::vector<CWindow*> m_InvertedWindows;
+    std::vector<CWindow*> m_ManuallyInvertedWindows;
 
     ShaderHolder m_Shaders;
     bool m_ShadersSwapped = false;

@@ -3,7 +3,12 @@
 
 void WindowInverter::OnRenderWindowPre()
 {
-    bool shouldInvert = std::find(m_InvertedWindows.begin(), m_InvertedWindows.end(), g_pHyprOpenGL->m_pCurrentWindow) != m_InvertedWindows.end();
+    bool shouldInvert =
+        std::find(m_InvertedWindows.begin(), m_InvertedWindows.end(), g_pHyprOpenGL->m_pCurrentWindow)
+            != m_InvertedWindows.end() ||
+        std::find(m_ManuallyInvertedWindows.begin(), m_ManuallyInvertedWindows.end(), g_pHyprOpenGL->m_pCurrentWindow)
+            != m_ManuallyInvertedWindows.end();
+
     if (shouldInvert)
     {
         std::swap(m_Shaders.EXT, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shEXT);
@@ -31,6 +36,13 @@ void WindowInverter::OnWindowClose(CWindow* window)
     {
         std::swap(*windowIt, *(m_InvertedWindows.end() - 1));
         m_InvertedWindows.pop_back();
+    }
+
+    windowIt = std::find(m_ManuallyInvertedWindows.begin(), m_ManuallyInvertedWindows.end(), window);
+    if (windowIt != m_ManuallyInvertedWindows.end())
+    {
+        std::swap(*windowIt, *(m_ManuallyInvertedWindows.end() - 1));
+        m_ManuallyInvertedWindows.pop_back();
     }
 }
 
@@ -156,13 +168,13 @@ void WindowInverter::ToggleInvert(CWindow* window)
     if (!window)
         return;
 
-    auto it_window = std::find(m_InvertedWindows.begin(), m_InvertedWindows.end(), window);
-    if (it_window == m_InvertedWindows.end())
-        m_InvertedWindows.push_back(window);
+    auto windowIt = std::find(m_ManuallyInvertedWindows.begin(), m_ManuallyInvertedWindows.end(), window);
+    if (windowIt == m_ManuallyInvertedWindows.end())
+        m_ManuallyInvertedWindows.push_back(window);
     else
     {
-        std::swap(*it_window, *(m_InvertedWindows.end() - 1));
-        m_InvertedWindows.pop_back();
+        std::swap(*windowIt, *(m_ManuallyInvertedWindows.end() - 1));
+        m_ManuallyInvertedWindows.pop_back();
     }
 
     g_pHyprRenderer->damageWindow(window);
