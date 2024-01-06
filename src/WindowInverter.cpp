@@ -145,6 +145,8 @@ void WindowInverter::InvertIfMatches(CWindow* window)
             std::swap(*windowIt, *(m_InvertedWindows.end() - 1));
             m_InvertedWindows.pop_back();
         }
+
+        g_pHyprRenderer->damageWindow(window);
     }
 }
 
@@ -163,15 +165,7 @@ void WindowInverter::ToggleInvert(CWindow* window)
         m_InvertedWindows.pop_back();
     }
 
-    auto monitor = g_pCompositor->getMonitorFromID(window->m_iMonitorID);
-    if (!monitor)
-        return;
-
-    if (monitor->forceFullFrames < 2)
-        monitor->forceFullFrames = 2;
-
-    // Need this to redraw the monitor?
-    Events::listener_monitorFrame(monitor, nullptr);
+    g_pHyprRenderer->damageWindow(window);
 }
 
 

@@ -15,10 +15,10 @@ clean:
 	rm -rf hyprland
 
 load: unload
-	hyprctl plugin load $(shell pwd)/out/hypr-darkwindow.so
+	hyprctl plugin load $(shell pwd)/out/$(VERSION)/hypr-darkwindow.so
 
 unload:
-	hyprctl plugin unload $(shell pwd)/out/hypr-darkwindow.so
+	hyprctl plugin unload $(shell pwd)/out/$(VERSION)/hypr-darkwindow.so
 
 setup-dev:
 ifeq ("$(wildcard hyprland/$(VERSION))","")
@@ -26,7 +26,7 @@ ifeq ("$(wildcard hyprland/$(VERSION))","")
 	git clone https://github.com/hyprwm/Hyprland "hyprland/$(VERSION)"
 	cd "hyprland/$(VERSION)" && git checkout "$(VERSION)" && git submodule update --init
 endif
-	cd "hyprland/$(VERSION)" && make debug
+	cd "hyprland/$(VERSION)" && make debug && make installheaders PREFIX="."
 
 setup-headers:
 ifeq ("$(wildcard hyprland/$(VERSION))","")
@@ -34,7 +34,7 @@ ifeq ("$(wildcard hyprland/$(VERSION))","")
 	git clone https://github.com/hyprwm/Hyprland "hyprland/$(VERSION)"
 	cd "hyprland/$(VERSION)" && git checkout "$(VERSION)" && git submodule update --init
 endif
-	cd "hyprland/$(VERSION)" && make all && make installheaders PREFIX="$(pwd)"
+	cd "hyprland/$(VERSION)" && make all && make installheaders PREFIX="."
 
 dev:
-	Hyprland/build/Hyprland
+	hyprland/$(VERSION)/build/Hyprland
