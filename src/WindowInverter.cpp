@@ -4,10 +4,10 @@
 void WindowInverter::OnRenderWindowPre()
 {
     bool shouldInvert =
-        std::find(m_InvertedWindows.begin(), m_InvertedWindows.end(), g_pHyprOpenGL->m_pCurrentWindow)
-            != m_InvertedWindows.end() ||
-        std::find(m_ManuallyInvertedWindows.begin(), m_ManuallyInvertedWindows.end(), g_pHyprOpenGL->m_pCurrentWindow)
-            != m_ManuallyInvertedWindows.end();
+        (std::find(m_InvertedWindows.begin(), m_InvertedWindows.end(), g_pHyprOpenGL->m_pCurrentWindow)
+            != m_InvertedWindows.end()) !=
+        (std::find(m_ManuallyInvertedWindows.begin(), m_ManuallyInvertedWindows.end(), g_pHyprOpenGL->m_pCurrentWindow)
+            != m_ManuallyInvertedWindows.end());
 
     if (shouldInvert)
     {
