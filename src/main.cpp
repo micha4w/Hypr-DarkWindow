@@ -12,19 +12,19 @@ inline CFunctionHook* g_SetConfigValueHook;
 inline std::vector<SWindowRule> g_WindowRulesBuildup;
 
 
-Hyprlang::CParseResult onInvertKeyword(const char* COMMAND, const char* VALUE)
-{
-    Hyprlang::CParseResult res;
-    try
-    {
-        g_WindowRulesBuildup.push_back(ParseRule(VALUE));
-    }
-    catch (const std::exception& ex)
-    {
-        res.setError(ex.what());
-    }
-    return res;
-}
+// Hyprlang::CParseResult onInvertKeyword(const char* COMMAND, const char* VALUE)
+// {
+//     Hyprlang::CParseResult res;
+//     try
+//     {
+//         g_WindowRulesBuildup.push_back(ParseRule(VALUE));
+//     }
+//     catch (const std::exception& ex)
+//     {
+//         res.setError(ex.what());
+//     }
+//     return res;
+// }
 
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 {
@@ -36,10 +36,15 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         g_pConfigManager->m_bForceReload = true;
     }
 
+    using PCONFIGHANDLERFUNC = Hyprlang::CParseResult(*)(const char* COMMAND, const char* VALUE);
+
     HyprlandAPI::addConfigKeyword(
         handle, "darkwindow_invert",
-        onInvertKeyword,
-        { .allowFlags = false }
+        [&](const std::string& COMMAND, const std::string& VALUE) {
+            g_WindowRulesBuildup.push_back(ParseRule(VALUE));
+        }
+        // onInvertKeyword,
+        // { .allowFlags = false }
     );
 
     HyprlandAPI::registerCallbackDynamic(

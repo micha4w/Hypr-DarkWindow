@@ -6,6 +6,9 @@ all:
 	mkdir -p out
 	$(CXX) -shared -fPIC --no-gnu-unique src/*.cpp -Isrc/ -o out/hypr-darkwindow.so -g `pkg-config --cflags pixman-1 libdrm hyprland` -std=c++2b -DWLR_USE_UNSTABLE
 
+install:
+	true
+
 build-version:
 	mkdir -p "out/$(VERSION)" 
 	$(CXX) -shared -fPIC --no-gnu-unique src/*.cpp -Isrc/ -I"hyprland/$(VERSION)/include/hyprland/protocols" -I"hyprland/$(VERSION)/include/hyprland/wlroots" -I"hyprland/$(VERSION)/include/" -o "out/$(VERSION)/hypr-darkwindow.so" -g `pkg-config --cflags pixman-1 libdrm` -std=c++2b -DWLR_USE_UNSTABLE
