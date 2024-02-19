@@ -28,7 +28,7 @@
         # allow overriding xwayland support
         BUILT_WITH_NOXWAYLAND = false;
 
-        nativeBuildInputs = with pkgs; [meson ninja pkg-config];
+        nativeBuildInputs = with pkgs; [gnumake pkg-config];
 
         buildInputs = with pkgs;
           [
@@ -55,7 +55,6 @@
 
         nativeBuildInputs = with pkgs; [
           clang-tools_16
-          bear
         ];
 
         inputsFrom = [self.packages.${system}.Hypr-DarkWindow];
