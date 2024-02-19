@@ -6,8 +6,10 @@ all:
 	mkdir -p out
 	$(CXX) -shared -fPIC --no-gnu-unique src/*.cpp -Isrc/ -o out/hypr-darkwindow.so -g `pkg-config --cflags pixman-1 libdrm hyprland` -std=c++2b -DWLR_USE_UNSTABLE
 
+# For nix package
 install:
-	true
+	mkdir -p "result/lib"
+	cp out/hypr-darkwindow.so "result/lib"
 
 build-version:
 	mkdir -p "out/$(VERSION)" 
