@@ -9,7 +9,7 @@ all:
 # For nix package
 install:
 	mkdir -p "result/lib"
-	cp out/hypr-darkwindow.so "result/lib"
+	cp out/hypr-darkwindow.so "result/lib/libHypr-DarkWindow.so"
 
 build-version:
 	mkdir -p "out/$(VERSION)" 
