@@ -32,7 +32,7 @@
 
         installPhase = ''
           mkdir -p $out/lib
-          install ./hyprfocus.so $out/lib/libhyprfocus.so
+          install ./out/hypr-darkwindow.so $out/lib/libHypr-DarkWindow.so
         '';
 
         meta = with pkgs.lib; {
