@@ -27,8 +27,13 @@
           ];
         };
 
-        nativeBuildInputs = with pkgs; [ gnumake pkg-config ];
+        nativeBuildInputs = with pkgs; [ pkg-config ];
         buildInputs = [hyprlandPackage.dev] ++ hyprlandPackage.buildInputs;
+
+        installPhase = ''
+          mkdir -p $out/lib
+          install ./hyprfocus.so $out/lib/libhyprfocus.so
+        '';
 
         meta = with pkgs.lib; {
           homepage = "https://github.com/micha4w/Hypr-DarkWindow";
