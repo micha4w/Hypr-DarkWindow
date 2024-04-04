@@ -1,6 +1,11 @@
 {
   inputs = {
-    hyprland.url = "github:hyprwm/Hyprland/tags/v0.36.0";
+    hyprlang.url = "github:hyprwm/hyprlang/tags/v0.4.2";
+    hyprland = {
+      url = "github:hyprwm/Hyprland/tags/v0.38.0";
+      inputs.hyprlang.follows = "hyprlang";
+    };
+
     nix-filter.url = "github:numtide/nix-filter";
   };
 
