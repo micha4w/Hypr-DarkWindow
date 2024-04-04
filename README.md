@@ -15,6 +15,41 @@ Also adds 2 Dispatches `invertwindow WINDOW` and `invertactivewindow`
 
 ## Installation
 
+### Hpyrland >= v0.36.0
+We now support Nix, wooo!
+
+You should already have a fully working home-manager setup before adding this plugin.
+```nix
+#flake.nix
+inputs = {
+    home-manager = { ... };
+    hyprland = { ... };
+    ...
+    hypr-darkwindow = {
+      url = "github:micha4w/Hypr-DarkWindow/tags/v0.36.0";
+      inputs.hyprland.follows = "hyprland";
+    };
+};
+
+outputs = {
+  home-manager,
+  hypr-darkwindow,
+  ...
+}: {
+  ... = {
+    home-manager.users.micha4w = {
+      wayland.windowManager.hyprland.plugins = [
+        hypr-darkwindow.packages.${pkgs.system}.Hypr-DarkWindow
+      ];
+    };
+  };
+}
+```
+
+> [!NOTE]
+> In this example `inputs.hpyr-darkwindow.url` sets the tag, Make sure that tag matches your Hyprland version.
+
+
 ### Hpyrland >= v0.34.0
 Install using `hyprpm`
 ```sh
