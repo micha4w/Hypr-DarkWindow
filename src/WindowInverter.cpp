@@ -117,7 +117,7 @@ void WindowInverter::InvertIfMatches(CWindow* window)
             }
 
             if (!rule.szWorkspace.empty()) {
-                const auto PWORKSPACE = g_pCompositor->getWorkspaceByID(window->m_iWorkspaceID);
+                const auto PWORKSPACE = window->m_pWorkspace;
 
                 if (!PWORKSPACE)
                     continue;

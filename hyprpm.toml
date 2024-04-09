@@ -5,3 +5,7 @@ output = "out/hypr-darkwindow.so"
 build = [
     "make all",
 ]
+commit_pins = [
+    # v Hyprland                                  v Hypr-DarkWindow
+    ["360ede79d124ffdeebbe8401f1ac4bc0dbec2c91", "c506360835a3049ec01b33ef0fdab13a1e20d314"] # v0.38.1
+]
