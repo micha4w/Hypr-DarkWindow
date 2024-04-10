@@ -12,6 +12,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+
+    - name: Dependencies
+      run: apt install -y ninja-build
     
     - name: Get Hyprland
       run: make setup-headers VERSION=HEAD
