@@ -14,7 +14,7 @@ jobs:
 
     steps:
       - name: Hyprland
-        run: yay -Sy --noconfirm hyprland-git
+        run: yay -Syu --noconfirm hyprland-git
         
       - uses: actions/checkout@v3
       - name: Compile
