@@ -76,7 +76,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         PHANDLE, "moveWindow",
         [&](void* self, SCallbackInfo&, std::any data) {
         std::lock_guard<std::mutex> lock(g_InverterMutex);
-        g_WindowInverter.InvertIfMatches((CWindow*)std::any_cast<std::vector<void*>>(data)[0]);
+        g_WindowInverter.InvertIfMatches(std::any_cast<CWindow*>(std::any_cast<std::vector<std::any>>(data)[0]));
     }
     );
 
