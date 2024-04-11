@@ -9,14 +9,12 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
+    container:
+      image: nixos/nix
 
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - name: Dependencies
-      run: apt install -y ninja-build
-    
-    - name: Get Hyprland
-      run: make setup-headers VERSION=HEAD
-    - name: Compile
-      run: make build-version VERSION=HEAD
+      - name: Compile
+        run: nix --extra-experimental-features nix-command --extra-experimental-features flakes build
+
