@@ -15,5 +15,8 @@ jobs:
       - name: Install Nix
         uses: cachix/install-nix-action@v26
 
-      - name: Compile
+      - name: Update
+        run: nix flake update
+
+      - name: Build
         run: nix build
