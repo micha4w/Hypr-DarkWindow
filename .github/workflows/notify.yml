@@ -19,4 +19,4 @@ jobs:
         run: nix flake update
 
       - name: Build
-        run: nix build
+        run: nix build --extra-substituters "https://hyprland.cachix.org" -L
