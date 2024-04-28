@@ -12,6 +12,7 @@ inline std::mutex g_InverterMutex;
 inline CFunctionHook* g_SetConfigValueHook;
 inline std::vector<SWindowRule> g_WindowRulesBuildup;
 inline std::vector<std::shared_ptr<HOOK_CALLBACK_FN>> g_Callbacks;
+inline PHLWINDOWREF g_LastActiveWindow;
 
 
 Hyprlang::CParseResult onInvertKeyword(const char* COMMAND, const char* VALUE)
@@ -83,11 +84,24 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         }
     ));
 
-    for (const auto& event : { "activewindowv2", "openWindow", "fullscreen", "changeFloatingMode", "windowtitle" })
+    g_LastActiveWindow = g_pCompositor->m_pLastWindow;
+    g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
+        PHANDLE, "activeWindow",
+        [&](void* self, SCallbackInfo&, std::any data) {
+            std::lock_guard<std::mutex> lock(g_InverterMutex);
+            if (!g_LastActiveWindow.expired())
+                g_WindowInverter.InvertIfMatches(g_LastActiveWindow.lock());
+
+            g_WindowInverter.InvertIfMatches(std::any_cast<PHLWINDOW>(data));
+            g_LastActiveWindow = g_pCompositor->m_pLastWindow;
+        }
+    ));
+
+    for (const auto& event : { "openWindow", "fullscreen", "changeFloatingMode", "windowtitle" })
     {
         g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
             PHANDLE, event,
-            [&, event](void* self, SCallbackInfo&, std::any data) {
+            [&](void* self, SCallbackInfo&, std::any data) {
                 std::lock_guard<std::mutex> lock(g_InverterMutex);
                 g_WindowInverter.InvertIfMatches(std::any_cast<PHLWINDOW>(data));
             }
@@ -100,11 +114,8 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         g_WindowInverter.ToggleInvert(g_pCompositor->getWindowByRegex(args));
     });
     HyprlandAPI::addDispatcher(PHANDLE, "invertactivewindow", [&](std::string args) {
-        // Debug::log(INFO, "Something something woo");
         std::lock_guard<std::mutex> lock(g_InverterMutex);
-        // Debug::log(INFO, "Something something yay");
         g_WindowInverter.ToggleInvert(g_pCompositor->m_pLastWindow.lock());
-        // Debug::log(INFO, "Something something nice");
     });
 
     return {
