@@ -12,19 +12,19 @@ public:
     void Init();
     void Unload();
 
-    void InvertIfMatches(CWindow* window);
-    void ToggleInvert(CWindow* window);
+    void InvertIfMatches(PHLWINDOW window);
+    void ToggleInvert(PHLWINDOW window);
     void SetRules(std::vector<SWindowRule>&& rules);
     void Reload();
 
     void OnRenderWindowPre();
     void OnRenderWindowPost();
-    void OnWindowClose(CWindow* window);
+    void OnWindowClose(PHLWINDOW window);
 
 private:
     std::vector<SWindowRule> m_InvertWindowRules;
-    std::vector<CWindow*> m_InvertedWindows;
-    std::vector<CWindow*> m_ManuallyInvertedWindows;
+    std::vector<PHLWINDOW> m_InvertedWindows;
+    std::vector<PHLWINDOW> m_ManuallyInvertedWindows;
 
     ShaderHolder m_Shaders;
     bool m_ShadersSwapped = false;

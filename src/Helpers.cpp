@@ -4,7 +4,7 @@
 
 #include <hyprland/src/Compositor.hpp>
 
-
+// Yoinked from hyprland/src/config/ConfigManager.cpp
 SWindowRule ParseRule(const std::string& value)
 {
     SWindowRule rule;
@@ -12,18 +12,33 @@ SWindowRule ParseRule(const std::string& value)
     rule.szRule = "invert";
     rule.szValue = value;
 
-    const auto TITLEPOS = value.find("title:");
-    const auto CLASSPOS = value.find("class:");
-    const auto X11POS = value.find("xwayland:");
-    const auto FLOATPOS = value.find("floating:");
-    const auto FULLSCREENPOS = value.find("fullscreen:");
-    const auto PINNEDPOS = value.find("pinned:");
-    const auto WORKSPACEPOS = value.find("workspace:");
+    const auto TITLEPOS        = value.find("title:");
+    const auto CLASSPOS        = value.find("class:");
+    const auto INITIALTITLEPOS = value.find("initialTitle:");
+    const auto INITIALCLASSPOS = value.find("initialClass:");
+    const auto X11POS          = value.find("xwayland:");
+    const auto FLOATPOS        = value.find("floating:");
+    const auto FULLSCREENPOS   = value.find("fullscreen:");
+    const auto PINNEDPOS       = value.find("pinned:");
+    const auto FOCUSPOS        = value.find("focus:");
+    const auto ONWORKSPACEPOS  = value.find("onworkspace:");
 
-    if (TITLEPOS == std::string::npos && CLASSPOS == std::string::npos && X11POS == std::string::npos && FLOATPOS == std::string::npos && FULLSCREENPOS == std::string::npos &&
-        PINNEDPOS == std::string::npos && WORKSPACEPOS == std::string::npos) {
-        Debug::log(ERR, "Invalid rulev2 syntax: %s", value.c_str());
-        return rule;
+    // find workspacepos that isn't onworkspacepos
+    size_t WORKSPACEPOS = std::string::npos;
+    size_t currentPos   = value.find("workspace:");
+    while (currentPos != std::string::npos) {
+        if (currentPos == 0 || value[currentPos - 1] != 'n') {
+            WORKSPACEPOS = currentPos;
+            break;
+        }
+        currentPos = value.find("workspace:", currentPos + 1);
+    }
+
+    if (TITLEPOS == std::string::npos && CLASSPOS == std::string::npos && INITIALTITLEPOS == std::string::npos && INITIALCLASSPOS == std::string::npos &&
+        X11POS == std::string::npos && FLOATPOS == std::string::npos && FULLSCREENPOS == std::string::npos && PINNEDPOS == std::string::npos && WORKSPACEPOS == std::string::npos &&
+        FOCUSPOS == std::string::npos && ONWORKSPACEPOS == std::string::npos) {
+        Debug::log(ERR, "Invalid rulev2 syntax: {}", value);
+        throw std::logic_error("Invalid rulev2 syntax: " + value);
     }
 
     auto extract = [&](size_t pos) -> std::string {
@@ -35,6 +50,10 @@ SWindowRule ParseRule(const std::string& value)
             min = TITLEPOS;
         if (CLASSPOS > pos && CLASSPOS < min)
             min = CLASSPOS;
+        if (INITIALTITLEPOS > pos && INITIALTITLEPOS < min)
+            min = INITIALTITLEPOS;
+        if (INITIALCLASSPOS > pos && INITIALCLASSPOS < min)
+            min = INITIALCLASSPOS;
         if (X11POS > pos && X11POS < min)
             min = X11POS;
         if (FLOATPOS > pos && FLOATPOS < min)
@@ -43,14 +62,18 @@ SWindowRule ParseRule(const std::string& value)
             min = FULLSCREENPOS;
         if (PINNEDPOS > pos && PINNEDPOS < min)
             min = PINNEDPOS;
+        if (ONWORKSPACEPOS > pos && ONWORKSPACEPOS < min)
+            min = ONWORKSPACEPOS;
         if (WORKSPACEPOS > pos && WORKSPACEPOS < min)
-            min = PINNEDPOS;
+            min = WORKSPACEPOS;
+        if (FOCUSPOS > pos && FOCUSPOS < min)
+            min = FOCUSPOS;
 
         result = result.substr(0, min - pos);
 
         result = removeBeginEndSpacesTabs(result);
 
-        if (result.back() == ',')
+        if (!result.empty() && result.back() == ',')
             result.pop_back();
 
         return result;
@@ -61,6 +84,12 @@ SWindowRule ParseRule(const std::string& value)
 
     if (TITLEPOS != std::string::npos)
         rule.szTitle = extract(TITLEPOS + 6);
+
+    if (INITIALCLASSPOS != std::string::npos)
+        rule.szInitialClass = extract(INITIALCLASSPOS + 13);
+
+    if (INITIALTITLEPOS != std::string::npos)
+        rule.szInitialTitle = extract(INITIALTITLEPOS + 13);
 
     if (X11POS != std::string::npos)
         rule.bX11 = extract(X11POS + 9) == "1" ? 1 : 0;
@@ -76,6 +105,12 @@ SWindowRule ParseRule(const std::string& value)
 
     if (WORKSPACEPOS != std::string::npos)
         rule.szWorkspace = extract(WORKSPACEPOS + 10);
+
+    if (FOCUSPOS != std::string::npos)
+        rule.bFocus = extract(FOCUSPOS + 6) == "1" ? 1 : 0;
+
+    if (ONWORKSPACEPOS != std::string::npos)
+        rule.szOnWorkspace = extract(ONWORKSPACEPOS + 12);
 
     return rule;
 }

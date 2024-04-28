@@ -4,7 +4,7 @@ VERSION = HEAD
 
 all:
 	mkdir -p out
-	$(CXX) -shared -fPIC --no-gnu-unique src/*.cpp -Isrc/ -o out/hypr-darkwindow.so -g `pkg-config --cflags pixman-1 libdrm hyprland` -std=c++2b -DWLR_USE_UNSTABLE
+	$(CXX) -shared -fPIC --no-gnu-unique src/*.cpp -Isrc/ -o out/hypr-darkwindow.so -g `pkg-config --cflags pixman-1 libdrm hyprland hyprlang` -std=c++2b -DWLR_USE_UNSTABLE
 
 build-version:
 	mkdir -p "out/$(VERSION)" 

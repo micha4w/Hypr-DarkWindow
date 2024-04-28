@@ -1,6 +1,7 @@
 #include "WindowInverter.h"
 
 #include <hyprland/src/SharedDefs.hpp>
+#include <hyprlang.hpp>
 
 
 inline HANDLE PHANDLE = nullptr;
@@ -10,6 +11,7 @@ inline std::mutex g_InverterMutex;
 
 inline CFunctionHook* g_SetConfigValueHook;
 inline std::vector<SWindowRule> g_WindowRulesBuildup;
+inline std::vector<std::shared_ptr<HOOK_CALLBACK_FN>> g_Callbacks;
 
 
 Hyprlang::CParseResult onInvertKeyword(const char* COMMAND, const char* VALUE)
@@ -38,57 +40,58 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 
     using PCONFIGHANDLERFUNC = Hyprlang::CParseResult(*)(const char* COMMAND, const char* VALUE);
 
+    g_Callbacks = {};
     HyprlandAPI::addConfigKeyword(
         handle, "darkwindow_invert",
         onInvertKeyword,
         { .allowFlags = false }
     );
 
-    HyprlandAPI::registerCallbackDynamic(
+    g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
         PHANDLE, "render",
         [&](void* self, SCallbackInfo&, std::any data) {
-        std::lock_guard<std::mutex> lock(g_InverterMutex);
-        eRenderStage renderStage = std::any_cast<eRenderStage>(data);
+            std::lock_guard<std::mutex> lock(g_InverterMutex);
+            eRenderStage renderStage = std::any_cast<eRenderStage>(data);
 
-        if (renderStage == eRenderStage::RENDER_PRE_WINDOW)
-            g_WindowInverter.OnRenderWindowPre();
-        if (renderStage == eRenderStage::RENDER_POST_WINDOW)
-            g_WindowInverter.OnRenderWindowPost();
-    }
-    );
-    HyprlandAPI::registerCallbackDynamic(
+            if (renderStage == eRenderStage::RENDER_PRE_WINDOW)
+                g_WindowInverter.OnRenderWindowPre();
+            if (renderStage == eRenderStage::RENDER_POST_WINDOW)
+                g_WindowInverter.OnRenderWindowPost();
+        }
+    ));
+    g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
         PHANDLE, "configReloaded",
         [&](void* self, SCallbackInfo&, std::any data) {
-        std::lock_guard<std::mutex> lock(g_InverterMutex);
-        g_WindowInverter.SetRules(std::move(g_WindowRulesBuildup));
-        g_WindowRulesBuildup = {};
-    }
-    );
-    HyprlandAPI::registerCallbackDynamic(
+            std::lock_guard<std::mutex> lock(g_InverterMutex);
+            g_WindowInverter.SetRules(std::move(g_WindowRulesBuildup));
+            g_WindowRulesBuildup = {};
+        }
+    ));
+    g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
         PHANDLE, "closeWindow",
         [&](void* self, SCallbackInfo&, std::any data) {
-        std::lock_guard<std::mutex> lock(g_InverterMutex);
-        g_WindowInverter.OnWindowClose(std::any_cast<CWindow*>(data));
-    }
-    );
+            std::lock_guard<std::mutex> lock(g_InverterMutex);
+            g_WindowInverter.OnWindowClose(std::any_cast<PHLWINDOW>(data));
+        }
+    ));
 
-    HyprlandAPI::registerCallbackDynamic(
+    g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
         PHANDLE, "moveWindow",
         [&](void* self, SCallbackInfo&, std::any data) {
-        std::lock_guard<std::mutex> lock(g_InverterMutex);
-        g_WindowInverter.InvertIfMatches(std::any_cast<CWindow*>(std::any_cast<std::vector<std::any>>(data)[0]));
-    }
-    );
-
-    for (const auto& event : { "openWindow", "fullscreen", "changeFloatingMode", "windowtitle" })
-    {
-        HyprlandAPI::registerCallbackDynamic(
-            PHANDLE, event,
-            [&](void* self, SCallbackInfo&, std::any data) {
             std::lock_guard<std::mutex> lock(g_InverterMutex);
-            g_WindowInverter.InvertIfMatches(std::any_cast<CWindow*>(data));
+            g_WindowInverter.InvertIfMatches(std::any_cast<PHLWINDOW>(std::any_cast<std::vector<std::any>>(data)[0]));
         }
-        );
+    ));
+
+    for (const auto& event : { "activewindowv2", "openWindow", "fullscreen", "changeFloatingMode", "windowtitle" })
+    {
+        g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
+            PHANDLE, event,
+            [&, event](void* self, SCallbackInfo&, std::any data) {
+                std::lock_guard<std::mutex> lock(g_InverterMutex);
+                g_WindowInverter.InvertIfMatches(std::any_cast<PHLWINDOW>(data));
+            }
+        ));
     }
 
 
@@ -100,7 +103,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         // Debug::log(INFO, "Something something woo");
         std::lock_guard<std::mutex> lock(g_InverterMutex);
         // Debug::log(INFO, "Something something yay");
-        g_WindowInverter.ToggleInvert(g_pCompositor->m_pLastWindow);
+        g_WindowInverter.ToggleInvert(g_pCompositor->m_pLastWindow.lock());
         // Debug::log(INFO, "Something something nice");
     });
 
@@ -115,6 +118,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 APICALL EXPORT void PLUGIN_EXIT()
 {
     std::lock_guard<std::mutex> lock(g_InverterMutex);
+    g_Callbacks = {};
     g_WindowInverter.Unload();
 }
 
