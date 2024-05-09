@@ -74,6 +74,9 @@ void WindowInverter::Unload()
 
 void WindowInverter::InvertIfMatches(PHLWINDOW window)
 {
+    // for some reason, some events (currently `activeWindow`) sometimes pass a null pointer
+    if (!window) return;
+
     std::string              title = g_pXWaylandManager->getTitle(window);
     std::string              appidclass = g_pXWaylandManager->getAppIDClass(window);
 
