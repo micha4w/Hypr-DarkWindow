@@ -11,7 +11,7 @@ inline std::mutex g_InverterMutex;
 
 inline CFunctionHook* g_SetConfigValueHook;
 inline std::vector<SWindowRule> g_WindowRulesBuildup;
-inline std::vector<std::shared_ptr<HOOK_CALLBACK_FN>> g_Callbacks;
+inline std::vector<SP<HOOK_CALLBACK_FN>> g_Callbacks;
 inline PHLWINDOWREF g_LastActiveWindow;
 
 
