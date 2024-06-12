@@ -3,6 +3,7 @@
 #include <exception>
 
 #include <hyprland/src/Compositor.hpp>
+#include <hyprutils/string/String.hpp>
 
 // Yoinked from hyprland/src/config/ConfigManager.cpp
 SWindowRule ParseRule(const std::string& value)
@@ -71,7 +72,7 @@ SWindowRule ParseRule(const std::string& value)
 
         result = result.substr(0, min - pos);
 
-        result = removeBeginEndSpacesTabs(result);
+        result = Hyprutils::String::trim(result);
 
         if (!result.empty() && result.back() == ',')
             result.pop_back();

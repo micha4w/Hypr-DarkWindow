@@ -1,5 +1,7 @@
 #include "WindowInverter.h"
 
+#include <hyprutils/string/String.hpp>
+
 
 void WindowInverter::OnRenderWindowPre()
 {
@@ -155,7 +157,7 @@ void WindowInverter::InvertIfMatches(PHLWINDOW window)
                 }
                 else {
                     // number
-                    if (!isNumber(rule.szWorkspace))
+                    if (!Hyprutils::String::isNumber(rule.szWorkspace))
                         throw std::runtime_error("szWorkspace not name: or number");
 
                     const int64_t ID = std::stoll(rule.szWorkspace);
