@@ -4,14 +4,23 @@ Hyprland plugin that adds possibility to invert the color of specific windows.
 ![preview](./res/preview.png)
 
 ## Configuration
-This Branch adds config, that uses the rulev2 syntax:
+Adds 2 Dispatches `invertwindow WINDOW` and `invertactivewindow`.
+
+Or you can use windowrulev2 lines:
+```conf
+# hyprland.conf
+windowrulev2 = plugin:invertwindow,class:(pb170.exe)
+windowrulev2 = plugin:invertwindow,fullscreen:1
+```
+
+> [!WARNING]  
+> The following Config keyowrd is deprecated, it will be removed the next time the code Breaks
+
 ```conf
 # hyprland.conf
 darkwindow_invert = class:(pb170.exe)
 darkwindow_invert = fullscreen:1
 ```
-
-Also adds 2 Dispatches `invertwindow WINDOW` and `invertactivewindow`
 
 ## Installation
 

@@ -6,6 +6,7 @@
 #include <hyprland/src/Compositor.hpp>
 #include <hyprutils/string/String.hpp>
 
+// TODO remove deprecated
 // Yoinked from hyprland/src/config/ConfigManager.cpp
 SWindowRule ParseRule(const std::string& value)
 {

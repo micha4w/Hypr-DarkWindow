@@ -48,10 +48,9 @@ void WindowInverter::OnWindowClose(PHLWINDOW window)
     }
 }
 
-
 void WindowInverter::SetRules(std::vector<SWindowRule>&& rules)
 {
-    m_InvertWindowRules = rules;
+    m_InvertWindowRules = std::move(rules);
     Reload();
 }
 
@@ -79,10 +78,62 @@ void WindowInverter::InvertIfMatches(PHLWINDOW window)
     // for some reason, some events (currently `activeWindow`) sometimes pass a null pointer
     if (!window) return;
 
+    std::vector<SWindowRule> rules = g_pConfigManager->getMatchingRules(window);
+    bool shouldInvert = std::any_of(rules.begin(), rules.end(), [](const SWindowRule& rule) {
+        return rule.szRule == "plugin:invertwindow";
+    });
+
+    // TODO remove deprecated
+    shouldInvert = shouldInvert || MatchesDeprecatedRule(window);
+
+    auto windowIt = std::find(m_InvertedWindows.begin(), m_InvertedWindows.end(), window);
+    if (shouldInvert != (windowIt != m_InvertedWindows.end()))
+    {
+        if (shouldInvert)
+            m_InvertedWindows.push_back(window);
+        else
+        {
+            std::swap(*windowIt, *(m_InvertedWindows.end() - 1));
+            m_InvertedWindows.pop_back();
+        }
+
+        g_pHyprRenderer->damageWindow(window);
+    }
+}
+
+
+void WindowInverter::ToggleInvert(PHLWINDOW window)
+{
+    if (!window)
+        return;
+
+    auto windowIt = std::find(m_ManuallyInvertedWindows.begin(), m_ManuallyInvertedWindows.end(), window);
+    if (windowIt == m_ManuallyInvertedWindows.end())
+        m_ManuallyInvertedWindows.push_back(window);
+    else
+    {
+        std::swap(*windowIt, *(m_ManuallyInvertedWindows.end() - 1));
+        m_ManuallyInvertedWindows.pop_back();
+    }
+
+    g_pHyprRenderer->damageWindow(window);
+}
+
+
+void WindowInverter::Reload()
+{
+    m_InvertedWindows = {};
+
+    for (const auto& window : g_pCompositor->m_vWindows)
+        InvertIfMatches(window);
+}
+
+// TODO remove deprecated
+bool WindowInverter::MatchesDeprecatedRule(PHLWINDOW window)
+{
     std::string title = window->m_szTitle;
     std::string appidclass = window->m_szClass;
 
-    bool shouldInvert = false;
     for (const auto& rule : m_InvertWindowRules)
     {
         try {
@@ -175,48 +226,9 @@ void WindowInverter::InvertIfMatches(PHLWINDOW window)
             continue;
         }
 
-        shouldInvert = true;
-        break;
+        return true;
     }
 
-    auto windowIt = std::find(m_InvertedWindows.begin(), m_InvertedWindows.end(), window);
-    if (shouldInvert != (windowIt != m_InvertedWindows.end()))
-    {
-        if (shouldInvert)
-            m_InvertedWindows.push_back(window);
-        else
-        {
-            std::swap(*windowIt, *(m_InvertedWindows.end() - 1));
-            m_InvertedWindows.pop_back();
-        }
-
-        g_pHyprRenderer->damageWindow(window);
-    }
+    return false;
 }
 
-
-void WindowInverter::ToggleInvert(PHLWINDOW window)
-{
-    if (!window)
-        return;
-
-    auto windowIt = std::find(m_ManuallyInvertedWindows.begin(), m_ManuallyInvertedWindows.end(), window);
-    if (windowIt == m_ManuallyInvertedWindows.end())
-        m_ManuallyInvertedWindows.push_back(window);
-    else
-    {
-        std::swap(*windowIt, *(m_ManuallyInvertedWindows.end() - 1));
-        m_ManuallyInvertedWindows.pop_back();
-    }
-
-    g_pHyprRenderer->damageWindow(window);
-}
-
-
-void WindowInverter::Reload()
-{
-    m_InvertedWindows = {};
-
-    for (const auto& window : g_pCompositor->m_vWindows)
-        InvertIfMatches(window);
-}

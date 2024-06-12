@@ -9,25 +9,13 @@ inline HANDLE PHANDLE = nullptr;
 inline WindowInverter g_WindowInverter;
 inline std::mutex g_InverterMutex;
 
-inline CFunctionHook* g_SetConfigValueHook;
-inline std::vector<SWindowRule> g_WindowRulesBuildup;
 inline std::vector<SP<HOOK_CALLBACK_FN>> g_Callbacks;
-inline PHLWINDOWREF g_LastActiveWindow;
+
+// TODO remove deprecated
+inline std::vector<SWindowRule> g_WindowRulesBuildup;
+static void addDeprecatedEventListeners();
 
 
-Hyprlang::CParseResult onInvertKeyword(const char* COMMAND, const char* VALUE)
-{
-    Hyprlang::CParseResult res;
-    try
-    {
-        g_WindowRulesBuildup.push_back(ParseRule(VALUE));
-    }
-    catch (const std::exception& ex)
-    {
-        res.setError(ex.what());
-    }
-    return res;
-}
 
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 {
@@ -39,74 +27,51 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         g_pConfigManager->m_bForceReload = true;
     }
 
-    using PCONFIGHANDLERFUNC = Hyprlang::CParseResult(*)(const char* COMMAND, const char* VALUE);
-
     g_Callbacks = {};
-    HyprlandAPI::addConfigKeyword(
-        handle, "darkwindow_invert",
-        onInvertKeyword,
-        { .allowFlags = false }
-    );
+
+    addDeprecatedEventListeners();
 
     g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
         PHANDLE, "render",
         [&](void* self, SCallbackInfo&, std::any data) {
-            std::lock_guard<std::mutex> lock(g_InverterMutex);
-            eRenderStage renderStage = std::any_cast<eRenderStage>(data);
+        std::lock_guard<std::mutex> lock(g_InverterMutex);
+        eRenderStage renderStage = std::any_cast<eRenderStage>(data);
 
-            if (renderStage == eRenderStage::RENDER_PRE_WINDOW)
-                g_WindowInverter.OnRenderWindowPre();
-            if (renderStage == eRenderStage::RENDER_POST_WINDOW)
-                g_WindowInverter.OnRenderWindowPost();
-        }
+        if (renderStage == eRenderStage::RENDER_PRE_WINDOW)
+            g_WindowInverter.OnRenderWindowPre();
+        if (renderStage == eRenderStage::RENDER_POST_WINDOW)
+            g_WindowInverter.OnRenderWindowPost();
+    }
     ));
     g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
         PHANDLE, "configReloaded",
         [&](void* self, SCallbackInfo&, std::any data) {
             std::lock_guard<std::mutex> lock(g_InverterMutex);
+            
+            // TODO remove deprecated
             g_WindowInverter.SetRules(std::move(g_WindowRulesBuildup));
             g_WindowRulesBuildup = {};
+
+            // TODO add when removing top
+            // g_WindowInverter.Reload();
         }
     ));
     g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
         PHANDLE, "closeWindow",
         [&](void* self, SCallbackInfo&, std::any data) {
-            std::lock_guard<std::mutex> lock(g_InverterMutex);
-            g_WindowInverter.OnWindowClose(std::any_cast<PHLWINDOW>(data));
-        }
-    ));
-
-    g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
-        PHANDLE, "moveWindow",
-        [&](void* self, SCallbackInfo&, std::any data) {
-            std::lock_guard<std::mutex> lock(g_InverterMutex);
-            g_WindowInverter.InvertIfMatches(std::any_cast<PHLWINDOW>(std::any_cast<std::vector<std::any>>(data)[0]));
-        }
-    ));
-
-    g_LastActiveWindow = g_pCompositor->m_pLastWindow;
-    g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
-        PHANDLE, "activeWindow",
-        [&](void* self, SCallbackInfo&, std::any data) {
-            std::lock_guard<std::mutex> lock(g_InverterMutex);
-            if (!g_LastActiveWindow.expired())
-                g_WindowInverter.InvertIfMatches(g_LastActiveWindow.lock());
-
-            g_WindowInverter.InvertIfMatches(std::any_cast<PHLWINDOW>(data));
-            g_LastActiveWindow = g_pCompositor->m_pLastWindow;
-        }
-    ));
-
-    for (const auto& event : { "openWindow", "fullscreen", "changeFloatingMode", "windowtitle" })
-    {
-        g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
-            PHANDLE, event,
-            [&](void* self, SCallbackInfo&, std::any data) {
-                std::lock_guard<std::mutex> lock(g_InverterMutex);
-                g_WindowInverter.InvertIfMatches(std::any_cast<PHLWINDOW>(data));
-            }
-        ));
+        std::lock_guard<std::mutex> lock(g_InverterMutex);
+        g_WindowInverter.OnWindowClose(std::any_cast<PHLWINDOW>(data));
     }
+    ));
+
+    g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
+        PHANDLE, "windowUpdateRules",
+        [&](void* self, SCallbackInfo&, std::any data) {
+        std::lock_guard<std::mutex> lock(g_InverterMutex);
+        g_WindowInverter.InvertIfMatches(std::any_cast<PHLWINDOW>(data));
+    }
+    ));
+
 
 
     HyprlandAPI::addDispatcher(PHANDLE, "invertwindow", [&](std::string args) {
@@ -124,6 +89,31 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         "micha4w",
         "1.0.0"
     };
+}
+
+// TODO remove deprecated
+Hyprlang::CParseResult onInvertKeyword(const char* COMMAND, const char* VALUE)
+{
+    Hyprlang::CParseResult res;
+    try
+    {
+        g_WindowRulesBuildup.push_back(ParseRule(VALUE));
+    }
+    catch (const std::exception& ex)
+    {
+        res.setError(ex.what());
+    }
+    return res;
+}
+
+// TODO remove deprecated
+static void addDeprecatedEventListeners()
+{
+    HyprlandAPI::addConfigKeyword(
+        PHANDLE, "darkwindow_invert",
+        onInvertKeyword,
+        { .allowFlags = false }
+    );
 }
 
 APICALL EXPORT void PLUGIN_EXIT()
