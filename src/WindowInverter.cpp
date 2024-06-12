@@ -86,6 +86,9 @@ void WindowInverter::InvertIfMatches(PHLWINDOW window)
     for (const auto& rule : m_InvertWindowRules)
     {
         try {
+            if (!rule.szTag.empty() && !window->m_tags.isTagged(rule.szTag))
+                continue;
+
             if (rule.szClass != "") {
                 std::regex RULECHECK(rule.szClass);
 

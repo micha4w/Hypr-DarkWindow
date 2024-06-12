@@ -1,6 +1,7 @@
 #include "Helpers.h"
 
 #include <exception>
+#include <unordered_set>
 
 #include <hyprland/src/Compositor.hpp>
 #include <hyprutils/string/String.hpp>
@@ -13,6 +14,7 @@ SWindowRule ParseRule(const std::string& value)
     rule.szRule = "invert";
     rule.szValue = value;
 
+    const auto TAGPOS          = value.find("tag:");
     const auto TITLEPOS        = value.find("title:");
     const auto CLASSPOS        = value.find("class:");
     const auto INITIALTITLEPOS = value.find("initialTitle:");
@@ -35,9 +37,10 @@ SWindowRule ParseRule(const std::string& value)
         currentPos = value.find("workspace:", currentPos + 1);
     }
 
-    if (TITLEPOS == std::string::npos && CLASSPOS == std::string::npos && INITIALTITLEPOS == std::string::npos && INITIALCLASSPOS == std::string::npos &&
-        X11POS == std::string::npos && FLOATPOS == std::string::npos && FULLSCREENPOS == std::string::npos && PINNEDPOS == std::string::npos && WORKSPACEPOS == std::string::npos &&
-        FOCUSPOS == std::string::npos && ONWORKSPACEPOS == std::string::npos) {
+    const auto checkPos = std::unordered_set{
+        TAGPOS, TITLEPOS, CLASSPOS, INITIALTITLEPOS, INITIALCLASSPOS, X11POS, FLOATPOS, FULLSCREENPOS, PINNEDPOS, WORKSPACEPOS, FOCUSPOS, ONWORKSPACEPOS,
+    };
+    if (checkPos.size() == 1 && checkPos.contains(std::string::npos)) {
         Debug::log(ERR, "Invalid rulev2 syntax: {}", value);
         throw std::logic_error("Invalid rulev2 syntax: " + value);
     }
@@ -47,6 +50,8 @@ SWindowRule ParseRule(const std::string& value)
         result = value.substr(pos);
 
         size_t min = 999999;
+        if (TAGPOS > pos && TAGPOS < min)
+            min = TAGPOS;
         if (TITLEPOS > pos && TITLEPOS < min)
             min = TITLEPOS;
         if (CLASSPOS > pos && CLASSPOS < min)
@@ -79,6 +84,9 @@ SWindowRule ParseRule(const std::string& value)
 
         return result;
     };
+
+    if (TAGPOS != std::string::npos)
+        rule.szTag = extract(TAGPOS + 4);
 
     if (CLASSPOS != std::string::npos)
         rule.szClass = extract(CLASSPOS + 6);
