@@ -127,8 +127,7 @@ SWindowRule ParseRule(const std::string& value)
 
 void ShaderHolder::Init()
 {
-    RASSERT(eglMakeCurrent(wlr_egl_get_display(g_pCompositor->m_sWLREGL), EGL_NO_SURFACE, EGL_NO_SURFACE, wlr_egl_get_context(g_pCompositor->m_sWLREGL)),
-        "Couldn't set current EGL!");
+    g_pHyprRenderer->makeEGLCurrent();
 
     GLuint prog               = CreateProgram(TEXVERTSRC, TEXFRAGSRCRGBA_DARK);
     RGBA.program              = prog;
@@ -178,21 +177,18 @@ void ShaderHolder::Init()
     EXT.applyTint            = glGetUniformLocation(prog, "applyTint");
     EXT.tint                 = glGetUniformLocation(prog, "tint");
 
-    RASSERT(eglMakeCurrent(wlr_egl_get_display(g_pCompositor->m_sWLREGL), EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT),
-        "Couldn't unset current EGL!");
+    g_pHyprRenderer->unsetEGL();
 }
 
 void ShaderHolder::Destroy()
 {
-    RASSERT(eglMakeCurrent(wlr_egl_get_display(g_pCompositor->m_sWLREGL), EGL_NO_SURFACE, EGL_NO_SURFACE, wlr_egl_get_context(g_pCompositor->m_sWLREGL)),
-        "Couldn't set current EGL!");
+    g_pHyprRenderer->makeEGLCurrent();
 
     RGBA.destroy();
     RGBX.destroy();
     EXT.destroy();
 
-    RASSERT(eglMakeCurrent(wlr_egl_get_display(g_pCompositor->m_sWLREGL), EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT),
-        "Couldn't unset current EGL!");
+    g_pHyprRenderer->unsetEGL();
 }
 
 GLuint ShaderHolder::CompileShader(const GLuint& type, std::string src)
