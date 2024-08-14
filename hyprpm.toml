@@ -1,10 +1,6 @@
-[Hypr-DarkWindow]
-description = "Invert the colors of specific Windows"
+[repository]
+name = "Hypr-DarkWindow"
 authors = ["micha4w"]
-output = "out/hypr-darkwindow.so"
-build = [
-    "make all",
-]
 commit_pins = [
     # v Hyprland                                  v Hypr-DarkWindow
     ["1c460e98f870676b15871fe4e5bfeb1a32a3d6d8", "7eb7e04dea8cb92f22b7c2df4c78d4f29e28643d"], # v0.36.0
@@ -18,4 +14,12 @@ commit_pins = [
     ["ea2501d4556f84d3de86a4ae2f4b22a474555b9f", "d1c4337676d618db7199e4717c59807b4cafac5e"], # v0.41.0
     ["9e781040d9067c2711ec2e9f5b47b76ef70762b3", "ad5cb981f801e32b576617ec9290c282304c30d4"], # v0.41.1
     ["9a09eac79b85c846e3a865a9078a3f8ff65a9259", "58bb4f967c58334a1d6dbe0ab2442ac8984d2ac6"], # v0.42.0
+]
+
+[Hypr-DarkWindow]
+description = "Invert the colors of specific Windows"
+authors = ["micha4w"]
+output = "out/hypr-darkwindow.so"
+build = [
+    "make all",
 ]
