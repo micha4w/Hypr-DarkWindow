@@ -39,7 +39,7 @@
         meta = with pkgs.lib; {
           homepage = "https://github.com/micha4w/Hypr-DarkWindow";
           description = "Invert the colors of specific Windows";
-          license = licenses.bsd3;
+          license = licenses.mit;
           platforms = platforms.linux;
         };
       };
