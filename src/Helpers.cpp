@@ -6,124 +6,6 @@
 #include <hyprland/src/Compositor.hpp>
 #include <hyprutils/string/String.hpp>
 
-// TODO remove deprecated
-// Yoinked from hyprland/src/config/ConfigManager.cpp
-SWindowRule ParseRule(const std::string& value)
-{
-    SWindowRule rule;
-    rule.v2 = true;
-    rule.szRule = "invert";
-    rule.szValue = value;
-
-    const auto TAGPOS          = value.find("tag:");
-    const auto TITLEPOS        = value.find("title:");
-    const auto CLASSPOS        = value.find("class:");
-    const auto INITIALTITLEPOS = value.find("initialTitle:");
-    const auto INITIALCLASSPOS = value.find("initialClass:");
-    const auto X11POS          = value.find("xwayland:");
-    const auto FLOATPOS        = value.find("floating:");
-    const auto FULLSCREENPOS   = value.find("fullscreen:");
-    const auto PINNEDPOS       = value.find("pinned:");
-    const auto FOCUSPOS        = value.find("focus:");
-    const auto ONWORKSPACEPOS  = value.find("onworkspace:");
-
-    // find workspacepos that isn't onworkspacepos
-    size_t WORKSPACEPOS = std::string::npos;
-    size_t currentPos   = value.find("workspace:");
-    while (currentPos != std::string::npos) {
-        if (currentPos == 0 || value[currentPos - 1] != 'n') {
-            WORKSPACEPOS = currentPos;
-            break;
-        }
-        currentPos = value.find("workspace:", currentPos + 1);
-    }
-
-    const auto checkPos = std::unordered_set{
-        TAGPOS, TITLEPOS, CLASSPOS, INITIALTITLEPOS, INITIALCLASSPOS, X11POS, FLOATPOS, FULLSCREENPOS, PINNEDPOS, WORKSPACEPOS, FOCUSPOS, ONWORKSPACEPOS,
-    };
-    if (checkPos.size() == 1 && checkPos.contains(std::string::npos)) {
-        Debug::log(ERR, "Invalid rulev2 syntax: {}", value);
-        throw std::logic_error("Invalid rulev2 syntax: " + value);
-    }
-
-    auto extract = [&](size_t pos) -> std::string {
-        std::string result;
-        result = value.substr(pos);
-
-        size_t min = 999999;
-        if (TAGPOS > pos && TAGPOS < min)
-            min = TAGPOS;
-        if (TITLEPOS > pos && TITLEPOS < min)
-            min = TITLEPOS;
-        if (CLASSPOS > pos && CLASSPOS < min)
-            min = CLASSPOS;
-        if (INITIALTITLEPOS > pos && INITIALTITLEPOS < min)
-            min = INITIALTITLEPOS;
-        if (INITIALCLASSPOS > pos && INITIALCLASSPOS < min)
-            min = INITIALCLASSPOS;
-        if (X11POS > pos && X11POS < min)
-            min = X11POS;
-        if (FLOATPOS > pos && FLOATPOS < min)
-            min = FLOATPOS;
-        if (FULLSCREENPOS > pos && FULLSCREENPOS < min)
-            min = FULLSCREENPOS;
-        if (PINNEDPOS > pos && PINNEDPOS < min)
-            min = PINNEDPOS;
-        if (ONWORKSPACEPOS > pos && ONWORKSPACEPOS < min)
-            min = ONWORKSPACEPOS;
-        if (WORKSPACEPOS > pos && WORKSPACEPOS < min)
-            min = WORKSPACEPOS;
-        if (FOCUSPOS > pos && FOCUSPOS < min)
-            min = FOCUSPOS;
-
-        result = result.substr(0, min - pos);
-
-        result = Hyprutils::String::trim(result);
-
-        if (!result.empty() && result.back() == ',')
-            result.pop_back();
-
-        return result;
-    };
-
-    if (TAGPOS != std::string::npos)
-        rule.szTag = extract(TAGPOS + 4);
-
-    if (CLASSPOS != std::string::npos)
-        rule.szClass = extract(CLASSPOS + 6);
-
-    if (TITLEPOS != std::string::npos)
-        rule.szTitle = extract(TITLEPOS + 6);
-
-    if (INITIALCLASSPOS != std::string::npos)
-        rule.szInitialClass = extract(INITIALCLASSPOS + 13);
-
-    if (INITIALTITLEPOS != std::string::npos)
-        rule.szInitialTitle = extract(INITIALTITLEPOS + 13);
-
-    if (X11POS != std::string::npos)
-        rule.bX11 = extract(X11POS + 9) == "1" ? 1 : 0;
-
-    if (FLOATPOS != std::string::npos)
-        rule.bFloating = extract(FLOATPOS + 9) == "1" ? 1 : 0;
-
-    if (FULLSCREENPOS != std::string::npos)
-        rule.bFullscreen = extract(FULLSCREENPOS + 11) == "1" ? 1 : 0;
-
-    if (PINNEDPOS != std::string::npos)
-        rule.bPinned = extract(PINNEDPOS + 7) == "1" ? 1 : 0;
-
-    if (WORKSPACEPOS != std::string::npos)
-        rule.szWorkspace = extract(WORKSPACEPOS + 10);
-
-    if (FOCUSPOS != std::string::npos)
-        rule.bFocus = extract(FOCUSPOS + 6) == "1" ? 1 : 0;
-
-    if (ONWORKSPACEPOS != std::string::npos)
-        rule.szOnWorkspace = extract(ONWORKSPACEPOS + 12);
-
-    return rule;
-}
 
 void ShaderHolder::Init()
 {
@@ -144,6 +26,7 @@ void ShaderHolder::Init()
     RGBA.radius               = glGetUniformLocation(prog, "radius");
     RGBA.applyTint            = glGetUniformLocation(prog, "applyTint");
     RGBA.tint                 = glGetUniformLocation(prog, "tint");
+    RGBA_Invert               = glGetUniformLocation(prog, "doInvert"); 
 
     prog                      = CreateProgram(TEXVERTSRC, TEXFRAGSRCRGBX_DARK);
     RGBX.program              = prog;
@@ -160,6 +43,7 @@ void ShaderHolder::Init()
     RGBX.radius               = glGetUniformLocation(prog, "radius");
     RGBX.applyTint            = glGetUniformLocation(prog, "applyTint");
     RGBX.tint                 = glGetUniformLocation(prog, "tint");
+    RGBX_Invert               = glGetUniformLocation(prog, "doInvert"); 
 
     prog                     = CreateProgram(TEXVERTSRC, TEXFRAGSRCEXT_DARK);
     EXT.program              = prog;
@@ -176,6 +60,7 @@ void ShaderHolder::Init()
     EXT.radius               = glGetUniformLocation(prog, "radius");
     EXT.applyTint            = glGetUniformLocation(prog, "applyTint");
     EXT.tint                 = glGetUniformLocation(prog, "tint");
+    EXT_Invert               = glGetUniformLocation(prog, "doInvert"); 
 
     g_pHyprRenderer->unsetEGL();
 }
@@ -205,7 +90,7 @@ GLuint ShaderHolder::CompileShader(const GLuint& type, std::string src)
     if (!ok) {
         char infoLog[512];
         glGetShaderInfoLog(shader, 512, NULL, infoLog);
-        Debug::log(ERR, "Error compiling shader: %s", infoLog);
+        Debug::log(ERR, "Error compiling shader: {}", infoLog);
         throw std::runtime_error(std::string("Error compiling shader: ") + infoLog);
     }
 

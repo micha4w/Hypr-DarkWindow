@@ -14,8 +14,7 @@ public:
 
     void InvertIfMatches(PHLWINDOW window);
     void ToggleInvert(PHLWINDOW window);
-    // TODO remove deprecated
-    void SetRules(std::vector<SWindowRule>&& rules);
+    void SoftToggle(bool invert);
     void Reload();
 
     void OnRenderWindowPre();
@@ -29,7 +28,4 @@ private:
 
     ShaderHolder m_Shaders;
     bool m_ShadersSwapped = false;
-
-    // TODO remove deprecated
-    bool MatchesDeprecatedRule(PHLWINDOW window);
 };

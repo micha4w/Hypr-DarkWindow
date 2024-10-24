@@ -1,5 +1,7 @@
 #include "WindowInverter.h"
 
+#include <dlfcn.h>
+
 #include <hyprland/src/SharedDefs.hpp>
 #include <hyprlang.hpp>
 
@@ -12,7 +14,6 @@ inline std::mutex g_InverterMutex;
 inline std::vector<SP<HOOK_CALLBACK_FN>> g_Callbacks;
 
 // TODO remove deprecated
-inline std::vector<SWindowRule> g_WindowRulesBuildup;
 static void addDeprecatedEventListeners();
 
 
@@ -41,36 +42,26 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
             g_WindowInverter.OnRenderWindowPre();
         if (renderStage == eRenderStage::RENDER_POST_WINDOW)
             g_WindowInverter.OnRenderWindowPost();
-    }
-    ));
+    }));
+
     g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
         PHANDLE, "configReloaded",
         [&](void* self, SCallbackInfo&, std::any data) {
-            std::lock_guard<std::mutex> lock(g_InverterMutex);
-            
-            // TODO remove deprecated
-            g_WindowInverter.SetRules(std::move(g_WindowRulesBuildup));
-            g_WindowRulesBuildup = {};
-
-            // TODO add when removing top
-            // g_WindowInverter.Reload();
-        }
-    ));
+        std::lock_guard<std::mutex> lock(g_InverterMutex);
+        g_WindowInverter.Reload();
+    }));
     g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
         PHANDLE, "closeWindow",
         [&](void* self, SCallbackInfo&, std::any data) {
         std::lock_guard<std::mutex> lock(g_InverterMutex);
         g_WindowInverter.OnWindowClose(std::any_cast<PHLWINDOW>(data));
-    }
-    ));
-
+    }));
     g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
         PHANDLE, "windowUpdateRules",
         [&](void* self, SCallbackInfo&, std::any data) {
         std::lock_guard<std::mutex> lock(g_InverterMutex);
         g_WindowInverter.InvertIfMatches(std::any_cast<PHLWINDOW>(data));
-    }
-    ));
+    }));
 
 
 
@@ -92,18 +83,19 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 }
 
 // TODO remove deprecated
+inline static bool g_DidNotify = false;
 Hyprlang::CParseResult onInvertKeyword(const char* COMMAND, const char* VALUE)
 {
-    Hyprlang::CParseResult res;
-    try
-    {
-        g_WindowRulesBuildup.push_back(ParseRule(VALUE));
+    if (!g_DidNotify) {
+        g_DidNotify = true;
+        HyprlandAPI::addNotification(
+            PHANDLE,
+            "[Hypr-DarkWindow] The darkwindow_invert keyword was removed in favor of windowrulev2s please check the GitHub for more info.",
+            CColor(0xFF'00'00'00),
+            10000
+        );
     }
-    catch (const std::exception& ex)
-    {
-        res.setError(ex.what());
-    }
-    return res;
+    return {};
 }
 
 // TODO remove deprecated

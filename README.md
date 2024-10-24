@@ -14,7 +14,7 @@ windowrulev2 = plugin:invertwindow,fullscreen:1
 ```
 
 > [!WARNING]  
-> The following Config keyowrd is deprecated, it will be removed the next time the code Breaks
+> The following Config keyword was removed, please switch to the new windowrule version.
 
 ```conf
 # hyprland.conf

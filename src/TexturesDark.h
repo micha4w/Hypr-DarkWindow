@@ -6,20 +6,19 @@
 #include <hyprland/src/render/shaders/Textures.hpp>
 
 
-inline static constexpr auto DARK_MODE_FUNC = [](const std::string colorVarName) -> std::string {
-    return std::format(R"glsl(
+inline static const std::string DARK_MODE_FUNC = R"glsl(
+uniform bool doInvert;
+
+void invert(inout vec4 color) {
+    if (doInvert) {
         // Invert Colors
-        {0}.rgb = vec3(1.) - vec3(.88, .9, .92) * {0}.rgb;
-        // if (v_texcoord.y > 0.5)
-        //     pixColor.rgb = vec3(1) - pixColor.rgb;
-        // else
-        //     pixColor = vec4(pixColor.a, 0, 0, 0.5);
+        color.rgb = vec3(1.) - vec3(.88, .9, .92) * color.rgb;
 
         // Invert Hue
-        {0}.rgb = -{0}.rgb + dot(vec3(0.26312, 0.5283, 0.10488), {0}.rgb) * 2.0;
-
-    )glsl", colorVarName);
-};
+        color.rgb = dot(vec3(0.26312, 0.5283, 0.10488), color.rgb) * 2.0 - color.rgb;
+    }
+}
+)glsl";
 
 
 inline const std::string TEXFRAGSRCRGBA_DARK = R"glsl(
@@ -39,6 +38,8 @@ uniform float discardAlphaValue;
 uniform int applyTint;
 uniform vec3 tint;
 
+)glsl" + DARK_MODE_FUNC + R"glsl(
+
 void main() {
 
     vec4 pixColor = texture2D(tex, v_texcoord);
@@ -55,7 +56,7 @@ void main() {
 	    pixColor[2] = pixColor[2] * tint[2];
     }
 
-	)glsl" + DARK_MODE_FUNC("pixColor") +  R"glsl(
+    invert(pixColor);
 
     if (radius > 0.0) {
     )glsl" +
@@ -82,6 +83,8 @@ uniform int discardAlphaValue;
 uniform int applyTint;
 uniform vec3 tint;
 
+)glsl" + DARK_MODE_FUNC + R"glsl(
+
 void main() {
 
     if (discardOpaque == 1 && alpha == 1.0)
@@ -90,12 +93,12 @@ void main() {
     vec4 pixColor = vec4(texture2D(tex, v_texcoord).rgb, 1.0);
 
     if (applyTint == 1) {
-	pixColor[0] = pixColor[0] * tint[0];
-	pixColor[1] = pixColor[1] * tint[1];
-	pixColor[2] = pixColor[2] * tint[2];
+        pixColor[0] = pixColor[0] * tint[0];
+        pixColor[1] = pixColor[1] * tint[1];
+        pixColor[2] = pixColor[2] * tint[2];
     }
 
-	)glsl" + DARK_MODE_FUNC("pixColor") +  R"glsl(
+    invert(pixColor);
 
     if (radius > 0.0) {
     )glsl" +
@@ -124,6 +127,8 @@ uniform int discardAlphaValue;
 uniform int applyTint;
 uniform vec3 tint;
 
+)glsl" + DARK_MODE_FUNC + R"glsl(
+
 void main() {
 
     vec4 pixColor = texture2D(texture0, v_texcoord);
@@ -132,12 +137,12 @@ void main() {
         discard;
 
     if (applyTint == 1) {
-	pixColor[0] = pixColor[0] * tint[0];
-	pixColor[1] = pixColor[1] * tint[1];
-	pixColor[2] = pixColor[2] * tint[2];
+        pixColor[0] = pixColor[0] * tint[0];
+        pixColor[1] = pixColor[1] * tint[1];
+        pixColor[2] = pixColor[2] * tint[2];
     }
 
-	)glsl" + DARK_MODE_FUNC("pixColor") +  R"glsl(
+    invert(pixColor);
 
     if (radius > 0.0) {
     )glsl" +

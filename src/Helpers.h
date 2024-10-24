@@ -21,14 +21,14 @@ namespace std
     }
 }
 
-// TODO remove deprecated
-SWindowRule ParseRule(const std::string& value);
-
 struct ShaderHolder
 {
     CShader RGBA;
+    GLint RGBA_Invert;
     CShader RGBX;
+    GLint RGBX_Invert;
     CShader EXT;
+    GLint EXT_Invert;
 
     void Init();
     void Destroy();
