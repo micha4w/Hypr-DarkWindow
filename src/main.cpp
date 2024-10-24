@@ -78,7 +78,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         "hypr-darkwindow",
         "Allows you to set dark mode for only specific Windows",
         "micha4w",
-        "1.0.0"
+        "2.0.0"
     };
 }
 

@@ -19,7 +19,7 @@
     in rec {
       Hypr-DarkWindow = pkgs.gcc13Stdenv.mkDerivation {
         pname = "Hypr-DarkWindow";
-        version = "0.1";
+        version = "2.0.0";
         src = nix-filter.lib {
           root = ./.;
           include = [
