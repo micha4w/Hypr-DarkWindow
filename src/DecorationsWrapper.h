@@ -14,7 +14,7 @@ public:
         return std::move(m_Wrapped);
     }
 
-    virtual void draw(CMonitor* m, float a) {
+    virtual void draw(PHLMONITOR m, float a) {
         m_Inverter.SoftToggle(false);
         m_Wrapped->draw(m, a);
         m_Inverter.SoftToggle(true);
