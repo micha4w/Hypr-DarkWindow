@@ -4,14 +4,17 @@
 
 class DecorationsWrapper : public IHyprWindowDecoration {
 public:
-    DecorationsWrapper(WindowInverter& inverter, std::unique_ptr<IHyprWindowDecoration>&& to_wrap)
-        : IHyprWindowDecoration(nullptr),
+    DecorationsWrapper(WindowInverter& inverter, std::unique_ptr<IHyprWindowDecoration>&& to_wrap, const PHLWINDOW& window)
+        : IHyprWindowDecoration(window),
           m_Inverter(inverter),
           m_Wrapped(std::move(to_wrap))
     { }
 
     std::unique_ptr<IHyprWindowDecoration> take() {
         return std::move(m_Wrapped);
+    }
+    IHyprWindowDecoration* get() {
+        return m_Wrapped.get();
     }
 
     virtual void draw(CMonitor* m, float a) {

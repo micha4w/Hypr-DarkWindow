@@ -7,22 +7,26 @@
 
 void WindowInverter::OnRenderWindowPre()
 {
+    auto window = g_pHyprOpenGL->m_pCurrentWindow.lock();
     bool shouldInvert =
-        (std::find(m_InvertedWindows.begin(), m_InvertedWindows.end(), g_pHyprOpenGL->m_pCurrentWindow.lock())
+        (std::find(m_InvertedWindows.begin(), m_InvertedWindows.end(), window)
             != m_InvertedWindows.end()) ^
-        (std::find(m_ManuallyInvertedWindows.begin(), m_ManuallyInvertedWindows.end(), g_pHyprOpenGL->m_pCurrentWindow.lock())
+        (std::find(m_ManuallyInvertedWindows.begin(), m_ManuallyInvertedWindows.end(), window)
             != m_ManuallyInvertedWindows.end());
 
     if (shouldInvert)
     {
-        for (auto& decoration : g_pHyprOpenGL->m_pCurrentWindow.lock()->m_dWindowDecorations) {
-            if (dynamic_cast<DecorationsWrapper*>(decoration.get()) == nullptr) {
+        if (m_IgnoreDecorations && *m_IgnoreDecorations)
+        {
+            for (auto& decoration : window->m_dWindowDecorations)
+            {
+                // Debug::log(LOG, "ADD: Window {:p}, Decoration {:p}", (void*)window.get(), (void*)decoration.get());
                 decoration.reset(dynamic_cast<IHyprWindowDecoration*>(
-                    new DecorationsWrapper(*this, std::move(decoration))
-                    ));
+                    new DecorationsWrapper(*this, std::move(decoration), g_pHyprOpenGL->m_pCurrentWindow.lock())
+                ));
             }
+            m_DecorationsWrapped = true;
         }
-
 
         std::swap(m_Shaders.EXT, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shEXT);
         std::swap(m_Shaders.RGBA, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shRGBA);
@@ -37,10 +41,15 @@ void WindowInverter::OnRenderWindowPost()
 {
     if (m_ShadersSwapped)
     {
-        for (auto& decoration : g_pHyprOpenGL->m_pCurrentWindow.lock()->m_dWindowDecorations) {
-            if (DecorationsWrapper* wrapper = dynamic_cast<DecorationsWrapper*>(decoration.get())) {
-                decoration.reset(wrapper->take().release());
+        if (m_DecorationsWrapped)
+        {
+            for (auto& decoration : g_pHyprOpenGL->m_pCurrentWindow.lock()->m_dWindowDecorations)
+            {
+                // Debug::log(LOG, "REMOVE: Window {:p}, Decoration {:p}", (void*)g_pHyprOpenGL->m_pCurrentWindow.get(), (void*)decoration.get());
+                if (DecorationsWrapper* wrapper = dynamic_cast<DecorationsWrapper*>(decoration.get()))
+                    decoration.reset(wrapper->take().release());
             }
+            m_DecorationsWrapped = false;
         }
 
         std::swap(m_Shaders.EXT, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shEXT);
@@ -65,9 +74,11 @@ void WindowInverter::OnWindowClose(PHLWINDOW window)
     remove(m_ManuallyInvertedWindows, window);
 }
 
-void WindowInverter::Init()
+void WindowInverter::Init(HANDLE pluginHandle)
 {
     m_Shaders.Init();
+
+    m_PluginHandle = pluginHandle;
 }
 
 void WindowInverter::Unload()
@@ -148,4 +159,11 @@ void WindowInverter::Reload()
 
     for (const auto& window : g_pCompositor->m_vWindows)
         InvertIfMatches(window);
+
+    if (m_IgnoreDecorations) {
+        Hyprlang::CConfigValue* config = HyprlandAPI::getConfigValue(m_PluginHandle, "plugin:darkwindow:ignore_decorations");
+        if (config && config->dataPtr()) {
+            m_IgnoreDecorations = *((Hyprlang::INT*) config->dataPtr()) != 0;
+        }
+    }
 }

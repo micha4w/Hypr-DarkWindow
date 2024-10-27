@@ -5,6 +5,8 @@
 #include <hyprland/src/SharedDefs.hpp>
 #include <hyprlang.hpp>
 
+#include "DecorationsWrapper.h"
+
 
 inline HANDLE PHANDLE = nullptr;
 
@@ -12,11 +14,21 @@ inline WindowInverter g_WindowInverter;
 inline std::mutex g_InverterMutex;
 
 inline std::vector<SP<HOOK_CALLBACK_FN>> g_Callbacks;
+CFunctionHook* g_getDataForHook;
 
 // TODO remove deprecated
 static void addDeprecatedEventListeners();
 
 
+void* hkGetDataFor(void* thisptr, IHyprWindowDecoration* pDecoration, PHLWINDOW pWindow) {
+    if (DecorationsWrapper* wrapper = dynamic_cast<DecorationsWrapper*>(pDecoration))
+    {
+        Debug::log(LOG, "IGNORE: Decoration {}", (void*)pDecoration);
+        pDecoration = wrapper->get();
+    }
+
+    return ((decltype(&hkGetDataFor))g_getDataForHook->m_pOriginal)(thisptr, pDecoration, pWindow);
+}
 
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 {
@@ -24,9 +36,11 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 
     {
         std::lock_guard<std::mutex> lock(g_InverterMutex);
-        g_WindowInverter.Init();
+        g_WindowInverter.Init(PHANDLE);
         g_pConfigManager->m_bForceReload = true;
     }
+
+    HyprlandAPI::addConfigValue(PHANDLE, "plugin:darkwindow:ignore_decorations", Hyprlang::CConfigValue(Hyprlang::INT{ 0 }));
 
     g_Callbacks = {};
 
@@ -63,7 +77,26 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         g_WindowInverter.InvertIfMatches(std::any_cast<PHLWINDOW>(data));
     }));
 
-
+    static const auto METHOD = ([&] {
+        auto all = HyprlandAPI::findFunctionsByName(PHANDLE, "getDataFor");
+        auto found = std::find_if(all.begin(), all.end(), [](const SFunctionMatch& line) {
+            return line.demangled.starts_with("CDecorationPositioner::getDataFor");
+        });
+        if (found != all.end())
+            return std::optional(*found);
+        else
+            return std::optional<SFunctionMatch>();
+    })();
+    if (METHOD)
+    {
+        g_getDataForHook = HyprlandAPI::createFunctionHook(handle, METHOD->address, (void*)&hkGetDataFor);
+        g_getDataForHook->hook();
+    }
+    else
+    {
+        Debug::log(WARN, "[DarkWindow] Failed to hook CDecorationPositioner::getDataFor, cannot ignore Decorations");
+        g_WindowInverter.NoIgnoreDecorations();
+    }
 
     HyprlandAPI::addDispatcher(PHANDLE, "invertwindow", [&](std::string args) {
         std::lock_guard<std::mutex> lock(g_InverterMutex);
