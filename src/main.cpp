@@ -23,7 +23,7 @@ static void addDeprecatedEventListeners();
 void* hkGetDataFor(void* thisptr, IHyprWindowDecoration* pDecoration, PHLWINDOW pWindow) {
     if (DecorationsWrapper* wrapper = dynamic_cast<DecorationsWrapper*>(pDecoration))
     {
-        Debug::log(LOG, "IGNORE: Decoration {}", (void*)pDecoration);
+        // Debug::log(LOG, "IGNORE: Decoration {}", (void*)pDecoration);
         pDecoration = wrapper->get();
     }
 
@@ -49,33 +49,37 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
     g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
         PHANDLE, "render",
         [&](void* self, SCallbackInfo&, std::any data) {
-        std::lock_guard<std::mutex> lock(g_InverterMutex);
-        eRenderStage renderStage = std::any_cast<eRenderStage>(data);
+            std::lock_guard<std::mutex> lock(g_InverterMutex);
+            eRenderStage renderStage = std::any_cast<eRenderStage>(data);
 
-        if (renderStage == eRenderStage::RENDER_PRE_WINDOW)
-            g_WindowInverter.OnRenderWindowPre();
-        if (renderStage == eRenderStage::RENDER_POST_WINDOW)
-            g_WindowInverter.OnRenderWindowPost();
-    }));
+            if (renderStage == eRenderStage::RENDER_PRE_WINDOW)
+                g_WindowInverter.OnRenderWindowPre();
+            if (renderStage == eRenderStage::RENDER_POST_WINDOW)
+                g_WindowInverter.OnRenderWindowPost();
+        }
+    ));
 
     g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
         PHANDLE, "configReloaded",
         [&](void* self, SCallbackInfo&, std::any data) {
-        std::lock_guard<std::mutex> lock(g_InverterMutex);
-        g_WindowInverter.Reload();
-    }));
+            std::lock_guard<std::mutex> lock(g_InverterMutex);
+            g_WindowInverter.Reload();
+        }
+    ));
     g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
         PHANDLE, "closeWindow",
         [&](void* self, SCallbackInfo&, std::any data) {
-        std::lock_guard<std::mutex> lock(g_InverterMutex);
-        g_WindowInverter.OnWindowClose(std::any_cast<PHLWINDOW>(data));
-    }));
+            std::lock_guard<std::mutex> lock(g_InverterMutex);
+            g_WindowInverter.OnWindowClose(std::any_cast<PHLWINDOW>(data));
+        }
+    ));
     g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
         PHANDLE, "windowUpdateRules",
         [&](void* self, SCallbackInfo&, std::any data) {
-        std::lock_guard<std::mutex> lock(g_InverterMutex);
-        g_WindowInverter.InvertIfMatches(std::any_cast<PHLWINDOW>(data));
-    }));
+            std::lock_guard<std::mutex> lock(g_InverterMutex);
+            g_WindowInverter.InvertIfMatches(std::any_cast<PHLWINDOW>(data));
+        }
+    ));
 
     static const auto METHOD = ([&] {
         auto all = HyprlandAPI::findFunctionsByName(PHANDLE, "getDataFor");
