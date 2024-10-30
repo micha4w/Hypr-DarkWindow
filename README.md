@@ -1,4 +1,4 @@
-# hypr-darkwindow
+# Hypr-DarkWindow
 Hyprland plugin that adds possibility to invert the color of specific windows.
 
 ![preview](./res/preview.png)
