@@ -24,7 +24,7 @@ darkwindow_invert = fullscreen:1
 
 ## Installation
 
-### Hpyrland >= v0.36.0
+### Hyprland >= v0.36.0
 We now support Nix, wooo!
 
 You should already have a fully working home-manager setup before adding this plugin.
@@ -56,10 +56,10 @@ outputs = {
 ```
 
 > [!NOTE]
-> In this example `inputs.hpyr-darkwindow.url` sets the tag, Make sure that tag matches your Hyprland version.
+> In this example `inputs.hypr-darkwindow.url` sets the tag, Make sure that tag matches your Hyprland version.
 
 
-### Hpyrland >= v0.34.0
+### Hyprland >= v0.34.0
 Install using `hyprpm`
 ```sh
 hyprpm add https://github.com/micha4w/Hypr-DarkWindow
@@ -67,7 +67,7 @@ hyprpm enable Hypr-DarkWindow
 hyprpm reload
 ```
 
-### Hpyrland >= v0.28.0
+### Hyprland >= v0.28.0
 Installable using [Hyprload](https://github.com/duckonaut/hyprload)
 ```toml
 # hyprload.toml
