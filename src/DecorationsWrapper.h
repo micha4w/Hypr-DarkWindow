@@ -17,7 +17,7 @@ public:
         return m_Wrapped.get();
     }
 
-    virtual void draw(PHLMONITOR m, float a) {
+    virtual void draw(PHLMONITOR m, float const& a) {
         m_Inverter.SoftToggle(false);
         m_Wrapped->draw(m, a);
         m_Inverter.SoftToggle(true);
