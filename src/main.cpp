@@ -128,7 +128,7 @@ Hyprlang::CParseResult onInvertKeyword(const char* COMMAND, const char* VALUE)
         HyprlandAPI::addNotification(
             PHANDLE,
             "[Hypr-DarkWindow] The darkwindow_invert keyword was removed in favor of windowrulev2s please check the GitHub for more info.",
-            CColor(0xFF'00'00'00),
+            { 0xFF'00'00'00 },
             10000
         );
     }
