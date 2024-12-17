@@ -17,7 +17,7 @@
     packages = forHyprlandSystems (system: pkgs: let
       hyprlandPackage = hyprland.packages.${system}.hyprland;
     in rec {
-      Hypr-DarkWindow = pkgs.gcc13Stdenv.mkDerivation {
+      Hypr-DarkWindow = pkgs.gcc14Stdenv.mkDerivation {
         pname = "Hypr-DarkWindow";
         version = "2.0.0";
         src = nix-filter.lib {
