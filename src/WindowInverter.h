@@ -29,7 +29,7 @@ public:
 private:
     HANDLE m_PluginHandle;
 
-    std::vector<SWindowRule> m_InvertWindowRules;
+    std::vector<CWindowRule> m_InvertWindowRules;
     std::vector<PHLWINDOW> m_InvertedWindows;
     std::vector<PHLWINDOW> m_ManuallyInvertedWindows;
 

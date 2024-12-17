@@ -99,9 +99,9 @@ void WindowInverter::InvertIfMatches(PHLWINDOW window)
     // for some reason, some events (currently `activeWindow`) sometimes pass a null pointer
     if (!window) return;
 
-    std::vector<SWindowRule> rules = g_pConfigManager->getMatchingRules(window);
-    bool shouldInvert = std::any_of(rules.begin(), rules.end(), [](const SWindowRule& rule) {
-        return rule.szRule == "plugin:invertwindow";
+    std::vector<SP<CWindowRule>> rules = g_pConfigManager->getMatchingRules(window);
+    bool shouldInvert = std::any_of(rules.begin(), rules.end(), [](const SP<CWindowRule>& rule) {
+        return rule->szRule == "plugin:invertwindow";
     });
 
     auto windowIt = std::find(m_InvertedWindows.begin(), m_InvertedWindows.end(), window);
