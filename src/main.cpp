@@ -102,13 +102,15 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         g_WindowInverter.NoIgnoreDecorations();
     }
 
-    HyprlandAPI::addDispatcher(PHANDLE, "invertwindow", [&](std::string args) {
+    HyprlandAPI::addDispatcherV2(PHANDLE, "invertwindow", [&](std::string args) {
         std::lock_guard<std::mutex> lock(g_InverterMutex);
         g_WindowInverter.ToggleInvert(g_pCompositor->getWindowByRegex(args));
+        return SDispatchResult{};
     });
-    HyprlandAPI::addDispatcher(PHANDLE, "invertactivewindow", [&](std::string args) {
+    HyprlandAPI::addDispatcherV2(PHANDLE, "invertactivewindow", [&](std::string args) {
         std::lock_guard<std::mutex> lock(g_InverterMutex);
         g_WindowInverter.ToggleInvert(g_pCompositor->m_pLastWindow.lock());
+        return SDispatchResult{};
     });
 
     return {
