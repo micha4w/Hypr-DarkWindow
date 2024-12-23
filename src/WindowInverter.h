@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <re2/re2.h>
 #include <hyprland/src/Compositor.hpp>
 
 #include "Helpers.h"
