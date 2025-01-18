@@ -3,7 +3,9 @@
 #include <string>
 #include <cstring>
 
-#include <hyprland/src/render/OpenGL.hpp>
+#include <hyprland/src/render/Renderer.hpp>
+#include <hyprland/src/config/ConfigManager.hpp>
+#include <hyprland/src/plugins/PluginAPI.hpp>
 
 #include "TexturesDark.h"
 

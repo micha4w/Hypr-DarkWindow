@@ -2,7 +2,6 @@
 
 #include <dlfcn.h>
 
-#include <hyprland/src/SharedDefs.hpp>
 #include <hyprlang.hpp>
 
 #include "DecorationsWrapper.h"
