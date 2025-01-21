@@ -36,10 +36,10 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
     {
         std::lock_guard<std::mutex> lock(g_InverterMutex);
         g_WindowInverter.Init(PHANDLE);
-        g_pConfigManager->m_bForceReload = true;
     }
 
     HyprlandAPI::addConfigValue(PHANDLE, "plugin:darkwindow:ignore_decorations", Hyprlang::CConfigValue(Hyprlang::INT{ 0 }));
+    HyprlandAPI::reloadConfig();
 
     g_Callbacks = {};
 
