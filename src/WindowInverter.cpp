@@ -21,7 +21,7 @@ void WindowInverter::OnRenderWindowPre()
             for (auto& decoration : window->m_dWindowDecorations)
             {
                 // Debug::log(LOG, "ADD: Window {:p}, Decoration {:p}", (void*)window.get(), (void*)decoration.get());
-                decoration.reset(dynamic_cast<IHyprWindowDecoration*>(
+                decoration = std::move(UP<IHyprWindowDecoration>(
                     new DecorationsWrapper(*this, std::move(decoration), window)
                 ));
             }
