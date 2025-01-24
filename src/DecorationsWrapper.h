@@ -4,13 +4,13 @@
 
 class DecorationsWrapper : public IHyprWindowDecoration {
 public:
-    DecorationsWrapper(WindowInverter& inverter, std::unique_ptr<IHyprWindowDecoration>&& to_wrap, const PHLWINDOW& window)
+    DecorationsWrapper(WindowInverter& inverter, UP<IHyprWindowDecoration>&& to_wrap, const PHLWINDOW& window)
         : IHyprWindowDecoration(window),
           m_Inverter(inverter),
           m_Wrapped(std::move(to_wrap))
     { }
 
-    std::unique_ptr<IHyprWindowDecoration> take() {
+    UP<IHyprWindowDecoration> take() {
         return std::move(m_Wrapped);
     }
     IHyprWindowDecoration* get() {
@@ -33,6 +33,6 @@ public:
     virtual uint64_t                   getDecorationFlags() { return m_Wrapped->getDecorationFlags(); }
     virtual std::string                getDisplayName() { return m_Wrapped->getDisplayName(); }
 private:
-    std::unique_ptr<IHyprWindowDecoration> m_Wrapped;
+    UP<IHyprWindowDecoration> m_Wrapped;
     WindowInverter& m_Inverter;
 };

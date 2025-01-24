@@ -47,7 +47,7 @@ void WindowInverter::OnRenderWindowPost()
             {
                 // Debug::log(LOG, "REMOVE: Window {:p}, Decoration {:p}", (void*)g_pHyprOpenGL->m_pCurrentWindow.get(), (void*)decoration.get());
                 if (DecorationsWrapper* wrapper = dynamic_cast<DecorationsWrapper*>(decoration.get()))
-                    decoration.reset(wrapper->take().release());
+                    decoration = std::move(wrapper->take());
             }
             m_DecorationsWrapped = false;
         }
