@@ -13,11 +13,39 @@ inline WindowInverter g_WindowInverter;
 inline std::mutex g_InverterMutex;
 
 inline std::vector<SP<HOOK_CALLBACK_FN>> g_Callbacks;
-CFunctionHook* g_getDataForHook;
+CFunctionHook* g_getDataForHook, * g_renderTexture, * g_renderTextureWithBlur;
 
 // TODO remove deprecated
 static void addDeprecatedEventListeners();
 
+
+void hkRenderTexture(void* thisptr, SP<CTexture> tex, CBox* pBox, float alpha, int round, float roundingPower, bool discardActive, bool allowCustomUV) {
+    {
+        std::lock_guard<std::mutex> lock(g_InverterMutex);
+        g_WindowInverter.OnRenderWindowPre();
+    }
+
+    ((decltype(&hkRenderTexture))g_renderTexture->m_pOriginal)(thisptr, tex, pBox, alpha, round, roundingPower, discardActive, allowCustomUV);
+
+    {
+        std::lock_guard<std::mutex> lock(g_InverterMutex);
+        g_WindowInverter.OnRenderWindowPost();
+    }
+}
+
+void hkRenderTextureWithBlur(void* thisptr, SP<CTexture> tex, CBox* pBox, float a, SP<CWLSurfaceResource> pSurface, int round, float roundingPower, bool blockBlurOptimization, float blurA, float overallA) {
+        {
+            std::lock_guard<std::mutex> lock(g_InverterMutex);
+            g_WindowInverter.OnRenderWindowPre();
+        }
+
+        ((decltype(&hkRenderTextureWithBlur))g_renderTexture->m_pOriginal)(thisptr, tex, pBox, a, pSurface, round, roundingPower, blockBlurOptimization, blurA, overallA);
+
+        {
+            std::lock_guard<std::mutex> lock(g_InverterMutex);
+            g_WindowInverter.OnRenderWindowPost();
+        }
+}
 
 void* hkGetDataFor(void* thisptr, IHyprWindowDecoration* pDecoration, PHLWINDOW pWindow) {
     if (DecorationsWrapper* wrapper = dynamic_cast<DecorationsWrapper*>(pDecoration))
@@ -46,19 +74,6 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
     addDeprecatedEventListeners();
 
     g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
-        PHANDLE, "render",
-        [&](void* self, SCallbackInfo&, std::any data) {
-            std::lock_guard<std::mutex> lock(g_InverterMutex);
-            eRenderStage renderStage = std::any_cast<eRenderStage>(data);
-
-            if (renderStage == eRenderStage::RENDER_PRE_WINDOW)
-                g_WindowInverter.OnRenderWindowPre();
-            if (renderStage == eRenderStage::RENDER_POST_WINDOW)
-                g_WindowInverter.OnRenderWindowPost();
-        }
-    ));
-
-    g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
         PHANDLE, "configReloaded",
         [&](void* self, SCallbackInfo&, std::any data) {
             std::lock_guard<std::mutex> lock(g_InverterMutex);
@@ -80,19 +95,31 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         }
     ));
 
-    static const auto METHOD = ([&] {
-        auto all = HyprlandAPI::findFunctionsByName(PHANDLE, "getDataFor");
-        auto found = std::find_if(all.begin(), all.end(), [](const SFunctionMatch& line) {
-            return line.demangled.starts_with("CDecorationPositioner::getDataFor");
+    const auto findFunction = [&](const std::string& className, const std::string& name) {
+        auto all = HyprlandAPI::findFunctionsByName(PHANDLE, name);
+        auto found = std::find_if(all.begin(), all.end(), [&](const SFunctionMatch& line) {
+            return line.demangled.starts_with(className + "::" + name);
         });
         if (found != all.end())
             return std::optional(*found);
         else
             return std::optional<SFunctionMatch>();
-    })();
-    if (METHOD)
+    };
+
+    static const auto pRenderTexture = findFunction("CHyprOpenGLImpl", "renderTexture");
+    if (!pRenderTexture) throw std::runtime_error("Failed to find CHyprOpenGLImpl::renderTexture");
+    g_renderTexture = HyprlandAPI::createFunctionHook(handle, pRenderTexture->address, (void*)&hkRenderTexture);
+    g_renderTexture->hook();
+
+    static const auto pRenderTextureWithBlur = findFunction("CHyprOpenGLImpl", "renderTextureWithBlur");
+    if (!pRenderTextureWithBlur) throw std::runtime_error("Failed to find CHyprOpenGLImpl::renderTextureWithBlur");
+    g_renderTextureWithBlur = HyprlandAPI::createFunctionHook(handle, pRenderTextureWithBlur->address, (void*)&hkRenderTextureWithBlur);
+    g_renderTextureWithBlur->hook();
+
+    static const auto pGetDataFor = findFunction("CDecorationPositioner", "getDataFor");
+    if (pGetDataFor)
     {
-        g_getDataForHook = HyprlandAPI::createFunctionHook(handle, METHOD->address, (void*)&hkGetDataFor);
+        g_getDataForHook = HyprlandAPI::createFunctionHook(handle, pGetDataFor->address, (void*)&hkGetDataFor);
         g_getDataForHook->hook();
     }
     else

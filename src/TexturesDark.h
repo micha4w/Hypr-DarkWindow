@@ -22,7 +22,7 @@ void invert(inout vec4 color) {
 
 
 inline const std::string TEXFRAGSRCRGBA_DARK = R"glsl(
-precision mediump float;
+precision highp float;
 varying vec2 v_texcoord; // is in 0-1
 uniform sampler2D tex;
 uniform float alpha;
@@ -30,6 +30,7 @@ uniform float alpha;
 uniform vec2 topLeft;
 uniform vec2 fullSize;
 uniform float radius;
+uniform float roundingPower;
 
 uniform int discardOpaque;
 uniform int discardAlpha;
@@ -46,7 +47,7 @@ void main() {
 
     if (discardOpaque == 1 && pixColor[3] * alpha == 1.0)
 	    discard;
-    
+
     if (discardAlpha == 1 && pixColor[3] <= discardAlphaValue)
         discard;
 
@@ -67,7 +68,7 @@ void main() {
 })glsl";
 
 inline const std::string TEXFRAGSRCRGBX_DARK = R"glsl(
-precision mediump float;
+precision highp float;
 varying vec2 v_texcoord;
 uniform sampler2D tex;
 uniform float alpha;
@@ -75,6 +76,7 @@ uniform float alpha;
 uniform vec2 topLeft;
 uniform vec2 fullSize;
 uniform float radius;
+uniform float roundingPower;
 
 uniform int discardOpaque;
 uniform int discardAlpha;
@@ -93,9 +95,9 @@ void main() {
     vec4 pixColor = vec4(texture2D(tex, v_texcoord).rgb, 1.0);
 
     if (applyTint == 1) {
-        pixColor[0] = pixColor[0] * tint[0];
-        pixColor[1] = pixColor[1] * tint[1];
-        pixColor[2] = pixColor[2] * tint[2];
+	pixColor[0] = pixColor[0] * tint[0];
+	pixColor[1] = pixColor[1] * tint[1];
+	pixColor[2] = pixColor[2] * tint[2];
     }
 
     invert(pixColor);
@@ -111,7 +113,7 @@ void main() {
 inline const std::string TEXFRAGSRCEXT_DARK = R"glsl(
 #extension GL_OES_EGL_image_external : require
 
-precision mediump float;
+precision highp float;
 varying vec2 v_texcoord;
 uniform samplerExternalOES texture0;
 uniform float alpha;
@@ -119,6 +121,7 @@ uniform float alpha;
 uniform vec2 topLeft;
 uniform vec2 fullSize;
 uniform float radius;
+uniform float roundingPower;
 
 uniform int discardOpaque;
 uniform int discardAlpha;
@@ -134,12 +137,12 @@ void main() {
     vec4 pixColor = texture2D(texture0, v_texcoord);
 
     if (discardOpaque == 1 && pixColor[3] * alpha == 1.0)
-        discard;
+	discard;
 
     if (applyTint == 1) {
-        pixColor[0] = pixColor[0] * tint[0];
-        pixColor[1] = pixColor[1] * tint[1];
-        pixColor[2] = pixColor[2] * tint[2];
+	pixColor[0] = pixColor[0] * tint[0];
+	pixColor[1] = pixColor[1] * tint[1];
+	pixColor[2] = pixColor[2] * tint[2];
     }
 
     invert(pixColor);
