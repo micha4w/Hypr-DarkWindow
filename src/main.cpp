@@ -39,7 +39,7 @@ void hkRenderTextureWithBlur(void* thisptr, SP<CTexture> tex, CBox* pBox, float 
             g_WindowInverter.OnRenderWindowPre();
         }
 
-        ((decltype(&hkRenderTextureWithBlur))g_renderTexture->m_pOriginal)(thisptr, tex, pBox, a, pSurface, round, roundingPower, blockBlurOptimization, blurA, overallA);
+        ((decltype(&hkRenderTextureWithBlur))g_renderTextureWithBlur->m_pOriginal)(thisptr, tex, pBox, a, pSurface, round, roundingPower, blockBlurOptimization, blurA, overallA);
 
         {
             std::lock_guard<std::mutex> lock(g_InverterMutex);
