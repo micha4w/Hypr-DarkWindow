@@ -2,8 +2,6 @@
 
 #include <hyprutils/string/String.hpp>
 
-#include "DecorationsWrapper.h"
-
 
 void WindowInverter::OnRenderWindowPre()
 {
@@ -16,18 +14,6 @@ void WindowInverter::OnRenderWindowPre()
 
     if (shouldInvert)
     {
-        if (m_IgnoreDecorations && *m_IgnoreDecorations)
-        {
-            for (auto& decoration : window->m_dWindowDecorations)
-            {
-                // Debug::log(LOG, "ADD: Window {:p}, Decoration {:p}", (void*)window.get(), (void*)decoration.get());
-                decoration = std::move(UP<IHyprWindowDecoration>(
-                    new DecorationsWrapper(*this, std::move(decoration), window)
-                ));
-            }
-            m_DecorationsWrapped = true;
-        }
-
         std::swap(m_Shaders.EXT, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shEXT);
         std::swap(m_Shaders.RGBA, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shRGBA);
         std::swap(m_Shaders.RGBX, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shRGBX);
@@ -41,17 +27,6 @@ void WindowInverter::OnRenderWindowPost()
 {
     if (m_ShadersSwapped)
     {
-        if (m_DecorationsWrapped)
-        {
-            for (auto& decoration : g_pHyprOpenGL->m_RenderData.currentWindow.lock()->m_dWindowDecorations)
-            {
-                // Debug::log(LOG, "REMOVE: Window {:p}, Decoration {:p}", (void*)g_pHyprOpenGL->m_pCurrentWindow.get(), (void*)decoration.get());
-                if (DecorationsWrapper* wrapper = dynamic_cast<DecorationsWrapper*>(decoration.get()))
-                    decoration = std::move(wrapper->take());
-            }
-            m_DecorationsWrapped = false;
-        }
-
         std::swap(m_Shaders.EXT, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shEXT);
         std::swap(m_Shaders.RGBA, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shRGBA);
         std::swap(m_Shaders.RGBX, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shRGBX);
@@ -74,11 +49,9 @@ void WindowInverter::OnWindowClose(PHLWINDOW window)
     remove(m_ManuallyInvertedWindows, window);
 }
 
-void WindowInverter::Init(HANDLE pluginHandle)
+void WindowInverter::Init()
 {
     m_Shaders.Init();
-
-    m_PluginHandle = pluginHandle;
 }
 
 void WindowInverter::Unload()
@@ -159,11 +132,4 @@ void WindowInverter::Reload()
 
     for (const auto& window : g_pCompositor->m_vWindows)
         InvertIfMatches(window);
-
-    if (m_IgnoreDecorations) {
-        Hyprlang::CConfigValue* config = HyprlandAPI::getConfigValue(m_PluginHandle, "plugin:darkwindow:ignore_decorations");
-        if (config && config->dataPtr()) {
-            m_IgnoreDecorations = *((Hyprlang::INT*) config->dataPtr()) != 0;
-        }
-    }
 }

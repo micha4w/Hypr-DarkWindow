@@ -15,9 +15,7 @@ inline std::mutex g_InverterMutex;
 inline std::vector<SP<HOOK_CALLBACK_FN>> g_Callbacks;
 CFunctionHook* g_getDataForHook, * g_renderTexture, * g_renderTextureWithBlur;
 
-// TODO remove deprecated
-static void addDeprecatedEventListeners();
-
+// TODO check out transformers
 
 void hkRenderTexture(void* thisptr, SP<CTexture> tex, CBox* pBox, float alpha, int round, float roundingPower, bool discardActive, bool allowCustomUV) {
     {
@@ -63,16 +61,10 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 
     {
         std::lock_guard<std::mutex> lock(g_InverterMutex);
-        g_WindowInverter.Init(PHANDLE);
+        g_WindowInverter.Init();
     }
 
-    HyprlandAPI::addConfigValue(PHANDLE, "plugin:darkwindow:ignore_decorations", Hyprlang::CConfigValue(Hyprlang::INT{ 0 }));
-    HyprlandAPI::reloadConfig();
-
     g_Callbacks = {};
-
-    addDeprecatedEventListeners();
-
     g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
         PHANDLE, "configReloaded",
         [&](void* self, SCallbackInfo&, std::any data) {
@@ -116,18 +108,6 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
     g_renderTextureWithBlur = HyprlandAPI::createFunctionHook(handle, pRenderTextureWithBlur->address, (void*)&hkRenderTextureWithBlur);
     g_renderTextureWithBlur->hook();
 
-    static const auto pGetDataFor = findFunction("CDecorationPositioner", "getDataFor");
-    if (pGetDataFor)
-    {
-        g_getDataForHook = HyprlandAPI::createFunctionHook(handle, pGetDataFor->address, (void*)&hkGetDataFor);
-        g_getDataForHook->hook();
-    }
-    else
-    {
-        Debug::log(WARN, "[DarkWindow] Failed to hook CDecorationPositioner::getDataFor, cannot ignore Decorations");
-        g_WindowInverter.NoIgnoreDecorations();
-    }
-
     HyprlandAPI::addDispatcherV2(PHANDLE, "invertwindow", [&](std::string args) {
         std::lock_guard<std::mutex> lock(g_InverterMutex);
         g_WindowInverter.ToggleInvert(g_pCompositor->getWindowByRegex(args));
@@ -143,34 +123,8 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         "Hypr-DarkWindow",
         "Allows you to set dark mode for only specific Windows",
         "micha4w",
-        "2.0.0"
+        "3.0.0"
     };
-}
-
-// TODO remove deprecated
-inline static bool g_DidNotify = false;
-Hyprlang::CParseResult onInvertKeyword(const char* COMMAND, const char* VALUE)
-{
-    if (!g_DidNotify) {
-        g_DidNotify = true;
-        HyprlandAPI::addNotification(
-            PHANDLE,
-            "[Hypr-DarkWindow] The darkwindow_invert keyword was removed in favor of windowrulev2s please check the GitHub for more info.",
-            { 0xFF'00'00'00 },
-            10000
-        );
-    }
-    return {};
-}
-
-// TODO remove deprecated
-static void addDeprecatedEventListeners()
-{
-    HyprlandAPI::addConfigKeyword(
-        PHANDLE, "darkwindow_invert",
-        onInvertKeyword,
-        { .allowFlags = false }
-    );
 }
 
 APICALL EXPORT void PLUGIN_EXIT()

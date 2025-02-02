@@ -10,7 +10,7 @@
 class WindowInverter
 {
 public:
-    void Init(HANDLE pluginHandle);
+    void Init();
     void Unload();
 
     void InvertIfMatches(PHLWINDOW window);
@@ -22,20 +22,10 @@ public:
     void OnRenderWindowPost();
     void OnWindowClose(PHLWINDOW window);
 
-    void NoIgnoreDecorations()
-    {
-        m_IgnoreDecorations = {};
-    }
-
 private:
-    HANDLE m_PluginHandle;
-
     std::vector<CWindowRule> m_InvertWindowRules;
     std::vector<PHLWINDOW> m_InvertedWindows;
     std::vector<PHLWINDOW> m_ManuallyInvertedWindows;
-
-    std::optional<bool> m_IgnoreDecorations = true;
-    bool m_DecorationsWrapped = false;   
 
     ShaderHolder m_Shaders;
     bool m_ShadersSwapped = false;
