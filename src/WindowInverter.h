@@ -1,10 +1,10 @@
 #pragma once
 
 #include <vector>
-#include <re2/re2.h>
-#include <hyprland/src/Compositor.hpp>
 
 #include "Helpers.h"
+
+#include <hyprland/src/Compositor.hpp>
 
 
 class WindowInverter
@@ -15,10 +15,9 @@ public:
 
     void InvertIfMatches(PHLWINDOW window);
     void ToggleInvert(PHLWINDOW window);
-    void SoftToggle(bool invert);
     void Reload();
 
-    void OnRenderWindowPre();
+    void OnRenderWindowPre(PHLWINDOW window);
     void OnRenderWindowPost();
     void OnWindowClose(PHLWINDOW window);
 

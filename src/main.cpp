@@ -1,10 +1,14 @@
+#include <hyprland/src/render/pass/PassElement.hpp>
+
+#define private public
+#include <hyprland/src/render/pass/SurfacePassElement.hpp>
+#undef private
+
 #include "WindowInverter.h"
 
 #include <dlfcn.h>
 
 #include <hyprlang.hpp>
-
-#include "DecorationsWrapper.h"
 
 
 inline HANDLE PHANDLE = nullptr;
@@ -13,46 +17,22 @@ inline WindowInverter g_WindowInverter;
 inline std::mutex g_InverterMutex;
 
 inline std::vector<SP<HOOK_CALLBACK_FN>> g_Callbacks;
-CFunctionHook* g_getDataForHook, * g_renderTexture, * g_renderTextureWithBlur;
+CFunctionHook* g_surfacePassDraw;
 
 // TODO check out transformers
 
-void hkRenderTexture(void* thisptr, SP<CTexture> tex, CBox* pBox, float alpha, int round, float roundingPower, bool discardActive, bool allowCustomUV) {
+void hkSurfacePassDraw(CSurfacePassElement* thisptr, const CRegion& damage) {
     {
         std::lock_guard<std::mutex> lock(g_InverterMutex);
-        g_WindowInverter.OnRenderWindowPre();
+        g_WindowInverter.OnRenderWindowPre(thisptr->data.pWindow);
     }
 
-    ((decltype(&hkRenderTexture))g_renderTexture->m_pOriginal)(thisptr, tex, pBox, alpha, round, roundingPower, discardActive, allowCustomUV);
+    ((decltype(&hkSurfacePassDraw))g_surfacePassDraw->m_pOriginal)(thisptr, damage);
 
     {
         std::lock_guard<std::mutex> lock(g_InverterMutex);
         g_WindowInverter.OnRenderWindowPost();
     }
-}
-
-void hkRenderTextureWithBlur(void* thisptr, SP<CTexture> tex, CBox* pBox, float a, SP<CWLSurfaceResource> pSurface, int round, float roundingPower, bool blockBlurOptimization, float blurA, float overallA) {
-        {
-            std::lock_guard<std::mutex> lock(g_InverterMutex);
-            g_WindowInverter.OnRenderWindowPre();
-        }
-
-        ((decltype(&hkRenderTextureWithBlur))g_renderTextureWithBlur->m_pOriginal)(thisptr, tex, pBox, a, pSurface, round, roundingPower, blockBlurOptimization, blurA, overallA);
-
-        {
-            std::lock_guard<std::mutex> lock(g_InverterMutex);
-            g_WindowInverter.OnRenderWindowPost();
-        }
-}
-
-void* hkGetDataFor(void* thisptr, IHyprWindowDecoration* pDecoration, PHLWINDOW pWindow) {
-    if (DecorationsWrapper* wrapper = dynamic_cast<DecorationsWrapper*>(pDecoration))
-    {
-        // Debug::log(LOG, "IGNORE: Decoration {}", (void*)pDecoration);
-        pDecoration = wrapper->get();
-    }
-
-    return ((decltype(&hkGetDataFor))g_getDataForHook->m_pOriginal)(thisptr, pDecoration, pWindow);
 }
 
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
@@ -98,15 +78,10 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
             return std::optional<SFunctionMatch>();
     };
 
-    static const auto pRenderTexture = findFunction("CHyprOpenGLImpl", "renderTexture");
-    if (!pRenderTexture) throw std::runtime_error("Failed to find CHyprOpenGLImpl::renderTexture");
-    g_renderTexture = HyprlandAPI::createFunctionHook(handle, pRenderTexture->address, (void*)&hkRenderTexture);
-    g_renderTexture->hook();
-
-    static const auto pRenderTextureWithBlur = findFunction("CHyprOpenGLImpl", "renderTextureWithBlur");
-    if (!pRenderTextureWithBlur) throw std::runtime_error("Failed to find CHyprOpenGLImpl::renderTextureWithBlur");
-    g_renderTextureWithBlur = HyprlandAPI::createFunctionHook(handle, pRenderTextureWithBlur->address, (void*)&hkRenderTextureWithBlur);
-    g_renderTextureWithBlur->hook();
+    static const auto pDraw = findFunction("CSurfacePassElement", "draw");
+    if (!pDraw) throw std::runtime_error("Failed to find CSurfacePassElement::draw");
+    g_surfacePassDraw = HyprlandAPI::createFunctionHook(handle, pDraw->address, (void*)&hkSurfacePassDraw);
+    g_surfacePassDraw->hook();
 
     HyprlandAPI::addDispatcherV2(PHANDLE, "invertwindow", [&](std::string args) {
         std::lock_guard<std::mutex> lock(g_InverterMutex);
@@ -123,7 +98,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         "Hypr-DarkWindow",
         "Allows you to set dark mode for only specific Windows",
         "micha4w",
-        "3.0.0"
+        "3.0.1"
     };
 }
 

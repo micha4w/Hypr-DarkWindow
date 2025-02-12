@@ -3,9 +3,8 @@
 #include <hyprutils/string/String.hpp>
 
 
-void WindowInverter::OnRenderWindowPre()
+void WindowInverter::OnRenderWindowPre(PHLWINDOW window)
 {
-    auto window = g_pHyprOpenGL->m_RenderData.currentWindow.lock();
     bool shouldInvert =
         (std::find(m_InvertedWindows.begin(), m_InvertedWindows.end(), window)
             != m_InvertedWindows.end()) ^
@@ -18,8 +17,6 @@ void WindowInverter::OnRenderWindowPre()
         std::swap(m_Shaders.RGBA, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shRGBA);
         std::swap(m_Shaders.RGBX, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shRGBX);
         m_ShadersSwapped = true;
-
-        SoftToggle(true);
     }
 }
 
@@ -108,21 +105,6 @@ void WindowInverter::ToggleInvert(PHLWINDOW window)
     }
 
     g_pHyprRenderer->damageWindow(window);
-}
-
-void WindowInverter::SoftToggle(bool invert)
-{
-    if (m_ShadersSwapped)
-    {
-        const auto toggleInvert = [&](GLuint prog, GLint location) {
-            glUseProgram(prog);
-            glUniform1i(location, invert ? 1 : 0);
-        };
-
-        toggleInvert(g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shEXT.program, m_Shaders.EXT_Invert);
-        toggleInvert(g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shRGBA.program, m_Shaders.RGBA_Invert);
-        toggleInvert(g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shRGBX.program, m_Shaders.RGBX_Invert);
-    }
 }
 
 

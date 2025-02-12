@@ -21,7 +21,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
-	rm -rf out
+	rm -rf $(OUT_DIR)
 
 load: unload
 	hyprctl plugin load $(shell pwd)/$(TARGET)
