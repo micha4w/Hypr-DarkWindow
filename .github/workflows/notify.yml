@@ -16,7 +16,7 @@ jobs:
         uses: cachix/install-nix-action@v26
         
       - name: Nix Cache
-        uses: DeterminateSystems/magic-nix-cache-action@main
+        uses: DeterminateSystems/flakehub-cache-action@main
 
       - name: Update
         run: nix flake update
