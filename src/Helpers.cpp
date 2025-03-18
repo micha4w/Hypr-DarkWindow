@@ -11,7 +11,37 @@ void ShaderHolder::Init()
 {
     g_pHyprRenderer->makeEGLCurrent();
 
-    GLuint prog               = CreateProgram(TEXVERTSRC, TEXFRAGSRCRGBA_DARK);
+    GLuint prog               = CreateProgram(TEXVERTSRC, TEXFRAGSRCCM_DARK);
+    CM.program                = prog;
+    CM.proj                   = glGetUniformLocation(prog, "proj");
+    CM.tex                    = glGetUniformLocation(prog, "tex");
+    CM.texType                = glGetUniformLocation(prog, "texType");
+    CM.sourceTF               = glGetUniformLocation(prog, "sourceTF");
+    CM.targetTF               = glGetUniformLocation(prog, "targetTF");
+    CM.sourcePrimaries        = glGetUniformLocation(prog, "sourcePrimaries");
+    CM.targetPrimaries        = glGetUniformLocation(prog, "targetPrimaries");
+    CM.maxLuminance           = glGetUniformLocation(prog, "maxLuminance");
+    CM.dstMaxLuminance        = glGetUniformLocation(prog, "dstMaxLuminance");
+    CM.dstRefLuminance        = glGetUniformLocation(prog, "dstRefLuminance");
+    CM.sdrSaturation          = glGetUniformLocation(prog, "sdrSaturation");
+    CM.sdrBrightness          = glGetUniformLocation(prog, "sdrBrightnessMultiplier");
+    CM.alphaMatte             = glGetUniformLocation(prog, "texMatte");
+    CM.alpha                  = glGetUniformLocation(prog, "alpha");
+    CM.texAttrib              = glGetAttribLocation(prog, "texcoord");
+    CM.matteTexAttrib         = glGetAttribLocation(prog, "texcoordMatte");
+    CM.posAttrib              = glGetAttribLocation(prog, "pos");
+    CM.discardOpaque          = glGetUniformLocation(prog, "discardOpaque");
+    CM.discardAlpha           = glGetUniformLocation(prog, "discardAlpha");
+    CM.discardAlphaValue      = glGetUniformLocation(prog, "discardAlphaValue");
+    CM.topLeft                = glGetUniformLocation(prog, "topLeft");
+    CM.fullSize               = glGetUniformLocation(prog, "fullSize");
+    CM.radius                 = glGetUniformLocation(prog, "radius");
+    CM.roundingPower          = glGetUniformLocation(prog, "roundingPower");
+    CM.applyTint              = glGetUniformLocation(prog, "applyTint");
+    CM.tint                   = glGetUniformLocation(prog, "tint");
+    CM.useAlphaMatte          = glGetUniformLocation(prog, "useAlphaMatte");
+
+    prog                      = CreateProgram(TEXVERTSRC, TEXFRAGSRCRGBA_DARK);
     RGBA.program              = prog;
     RGBA.proj                 = glGetUniformLocation(prog, "proj");
     RGBA.tex                  = glGetUniformLocation(prog, "tex");
@@ -72,6 +102,7 @@ void ShaderHolder::Destroy()
 {
     g_pHyprRenderer->makeEGLCurrent();
 
+    CM.destroy();
     RGBA.destroy();
     RGBX.destroy();
     EXT.destroy();

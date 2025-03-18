@@ -25,6 +25,7 @@ namespace std
 
 struct ShaderHolder
 {
+    CShader CM;
     CShader RGBA;
     CShader RGBX;
     CShader EXT;
