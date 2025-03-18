@@ -17,6 +17,21 @@ void invert(inout vec4 color) {
 )glsl";
 
 
+inline const std::string TEXFRAGSRCCM_DARK = R"glsl(
+precision highp float;
+varying vec2 v_texcoord;
+uniform sampler2D tex;
+
+)glsl" + DARK_MODE_FUNC + R"glsl(
+
+void main() {
+    vec4 pixColor = texture2D(tex, v_texcoord);
+
+    invert(pixColor);
+
+    gl_FragColor = pixColor;
+})glsl";
+
 inline const std::string TEXFRAGSRCRGBA_DARK = R"glsl(
 precision highp float;
 varying vec2 v_texcoord; // is in 0-1

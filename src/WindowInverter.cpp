@@ -16,6 +16,7 @@ void WindowInverter::OnRenderWindowPre(PHLWINDOW window)
         std::swap(m_Shaders.EXT, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shEXT);
         std::swap(m_Shaders.RGBA, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shRGBA);
         std::swap(m_Shaders.RGBX, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shRGBX);
+        std::swap(m_Shaders.CM, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shCM);
         m_ShadersSwapped = true;
     }
 }
@@ -27,6 +28,7 @@ void WindowInverter::OnRenderWindowPost()
         std::swap(m_Shaders.EXT, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shEXT);
         std::swap(m_Shaders.RGBA, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shRGBA);
         std::swap(m_Shaders.RGBX, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shRGBX);
+        std::swap(m_Shaders.CM, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shCM);
         m_ShadersSwapped = false;
     }
 }
@@ -58,6 +60,7 @@ void WindowInverter::Unload()
         std::swap(m_Shaders.EXT, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shEXT);
         std::swap(m_Shaders.RGBA, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shRGBA);
         std::swap(m_Shaders.RGBX, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shRGBX);
+        std::swap(m_Shaders.CM, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shCM);
         m_ShadersSwapped = false;
     }
 
