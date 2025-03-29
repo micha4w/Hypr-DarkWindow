@@ -13,10 +13,10 @@ void WindowInverter::OnRenderWindowPre(PHLWINDOW window)
 
     if (shouldInvert)
     {
-        std::swap(m_Shaders.EXT, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shEXT);
-        std::swap(m_Shaders.RGBA, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shRGBA);
-        std::swap(m_Shaders.RGBX, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shRGBX);
-        std::swap(m_Shaders.CM, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shCM);
+        std::swap(m_Shaders.EXT, g_pHyprOpenGL->m_shaders->m_shEXT);
+        std::swap(m_Shaders.RGBA, g_pHyprOpenGL->m_shaders->m_shRGBA);
+        std::swap(m_Shaders.RGBX, g_pHyprOpenGL->m_shaders->m_shRGBX);
+        std::swap(m_Shaders.CM, g_pHyprOpenGL->m_shaders->m_shCM);
         m_ShadersSwapped = true;
     }
 }
@@ -25,10 +25,10 @@ void WindowInverter::OnRenderWindowPost()
 {
     if (m_ShadersSwapped)
     {
-        std::swap(m_Shaders.EXT, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shEXT);
-        std::swap(m_Shaders.RGBA, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shRGBA);
-        std::swap(m_Shaders.RGBX, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shRGBX);
-        std::swap(m_Shaders.CM, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shCM);
+        std::swap(m_Shaders.EXT, g_pHyprOpenGL->m_shaders->m_shEXT);
+        std::swap(m_Shaders.RGBA, g_pHyprOpenGL->m_shaders->m_shRGBA);
+        std::swap(m_Shaders.RGBX, g_pHyprOpenGL->m_shaders->m_shRGBX);
+        std::swap(m_Shaders.CM, g_pHyprOpenGL->m_shaders->m_shCM);
         m_ShadersSwapped = false;
     }
 }
@@ -57,10 +57,10 @@ void WindowInverter::Unload()
 {
     if (m_ShadersSwapped)
     {
-        std::swap(m_Shaders.EXT, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shEXT);
-        std::swap(m_Shaders.RGBA, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shRGBA);
-        std::swap(m_Shaders.RGBX, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shRGBX);
-        std::swap(m_Shaders.CM, g_pHyprOpenGL->m_RenderData.pCurrentMonData->m_shCM);
+        std::swap(m_Shaders.EXT, g_pHyprOpenGL->m_shaders->m_shEXT);
+        std::swap(m_Shaders.RGBA, g_pHyprOpenGL->m_shaders->m_shRGBA);
+        std::swap(m_Shaders.RGBX, g_pHyprOpenGL->m_shaders->m_shRGBX);
+        std::swap(m_Shaders.CM, g_pHyprOpenGL->m_shaders->m_shCM);
         m_ShadersSwapped = false;
     }
 

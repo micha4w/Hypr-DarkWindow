@@ -7,8 +7,6 @@
 #include <hyprland/src/config/ConfigManager.hpp>
 #include <hyprland/src/plugins/PluginAPI.hpp>
 
-#include "TexturesDark.h"
-
 
 namespace std
 {
@@ -32,8 +30,4 @@ struct ShaderHolder
 
     void Init();
     void Destroy();
-
-private:
-    GLuint CompileShader(const GLuint& type, std::string src);
-    GLuint CreateProgram(const std::string& vert, const std::string& frag);
 };

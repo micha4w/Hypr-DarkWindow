@@ -4,96 +4,133 @@
 #include <unordered_set>
 
 #include <hyprland/src/Compositor.hpp>
-#include <hyprutils/string/String.hpp>
 
+#include "OpenGL.cpp.h"
+
+
+static std::string invert(std::string source) {
+    size_t out = source.find("layout(location = 0) out vec4 ");
+    std::string outVar;
+    if (out != std::string::npos) {
+        // es 300
+        size_t endOut = source.find(";", out);
+        outVar = std::string(&source[out + sizeof("layout(location = 0) out vec4 ") - 1], &source[endOut]);
+        outVar = Hyprutils::String::trim(outVar);
+    } else {
+        // es 200
+        if (!source.contains("gl_FragColor")) {
+            Debug::log(ERR, "Failed to invert GLSL Code, no gl_FragColor:\n{}", source);
+            throw std::runtime_error("Frag source does not contain a usage of 'gl_FragColor'");
+        }
+
+        outVar = "gl_FragColor";
+    }
+
+    if (!source.contains("void main(")) {
+        Debug::log(ERR, "Failed to invert GLSL Code, no main function: {}", source);
+        throw std::runtime_error("Frag source does not contain an occurence of 'void main('");
+    }
+
+    Hyprutils::String::replaceInString(source, "void main(", "void main_uninverted(");
+
+    source += std::format(R"glsl(
+void main() {{
+    main_uninverted();
+
+    // Invert Colors
+    {0}.rgb = vec3(1.) - vec3(.88, .9, .92) * {0}.rgb;
+
+    // Invert Hue
+    {0}.rgb = dot(vec3(0.26312, 0.5283, 0.10488), {0}.rgb) * 2.0 - {0}.rgb;
+}}
+    )glsl", outVar);
+
+    return source;
+}
 
 void ShaderHolder::Init()
 {
     g_pHyprRenderer->makeEGLCurrent();
 
-    GLuint prog               = CreateProgram(TEXVERTSRC, TEXFRAGSRCCM_DARK);
-    CM.program                = prog;
-    CM.proj                   = glGetUniformLocation(prog, "proj");
-    CM.tex                    = glGetUniformLocation(prog, "tex");
-    CM.texType                = glGetUniformLocation(prog, "texType");
-    CM.sourceTF               = glGetUniformLocation(prog, "sourceTF");
-    CM.targetTF               = glGetUniformLocation(prog, "targetTF");
-    CM.sourcePrimaries        = glGetUniformLocation(prog, "sourcePrimaries");
-    CM.targetPrimaries        = glGetUniformLocation(prog, "targetPrimaries");
-    CM.maxLuminance           = glGetUniformLocation(prog, "maxLuminance");
-    CM.dstMaxLuminance        = glGetUniformLocation(prog, "dstMaxLuminance");
-    CM.dstRefLuminance        = glGetUniformLocation(prog, "dstRefLuminance");
-    CM.sdrSaturation          = glGetUniformLocation(prog, "sdrSaturation");
-    CM.sdrBrightness          = glGetUniformLocation(prog, "sdrBrightnessMultiplier");
-    CM.alphaMatte             = glGetUniformLocation(prog, "texMatte");
-    CM.alpha                  = glGetUniformLocation(prog, "alpha");
-    CM.texAttrib              = glGetAttribLocation(prog, "texcoord");
-    CM.matteTexAttrib         = glGetAttribLocation(prog, "texcoordMatte");
-    CM.posAttrib              = glGetAttribLocation(prog, "pos");
-    CM.discardOpaque          = glGetUniformLocation(prog, "discardOpaque");
-    CM.discardAlpha           = glGetUniformLocation(prog, "discardAlpha");
-    CM.discardAlphaValue      = glGetUniformLocation(prog, "discardAlphaValue");
-    CM.topLeft                = glGetUniformLocation(prog, "topLeft");
-    CM.fullSize               = glGetUniformLocation(prog, "fullSize");
-    CM.radius                 = glGetUniformLocation(prog, "radius");
-    CM.roundingPower          = glGetUniformLocation(prog, "roundingPower");
-    CM.applyTint              = glGetUniformLocation(prog, "applyTint");
-    CM.tint                   = glGetUniformLocation(prog, "tint");
-    CM.useAlphaMatte          = glGetUniformLocation(prog, "useAlphaMatte");
+    std::map<std::string, std::string> includes;
+    loadShaderInclude("rounding.glsl", includes);
+    loadShaderInclude("CM.glsl", includes);
 
-    prog                      = CreateProgram(TEXVERTSRC, TEXFRAGSRCRGBA_DARK);
-    RGBA.program              = prog;
-    RGBA.proj                 = glGetUniformLocation(prog, "proj");
-    RGBA.tex                  = glGetUniformLocation(prog, "tex");
-    RGBA.alphaMatte           = glGetUniformLocation(prog, "texMatte");
-    RGBA.alpha                = glGetUniformLocation(prog, "alpha");
-    RGBA.texAttrib            = glGetAttribLocation(prog, "texcoord");
-    RGBA.matteTexAttrib       = glGetAttribLocation(prog, "texcoordMatte");
-    RGBA.posAttrib            = glGetAttribLocation(prog, "pos");
-    RGBA.discardOpaque        = glGetUniformLocation(prog, "discardOpaque");
-    RGBA.discardAlpha         = glGetUniformLocation(prog, "discardAlpha");
-    RGBA.discardAlphaValue    = glGetUniformLocation(prog, "discardAlphaValue");
-    RGBA.topLeft              = glGetUniformLocation(prog, "topLeft");
-    RGBA.fullSize             = glGetUniformLocation(prog, "fullSize");
-    RGBA.radius               = glGetUniformLocation(prog, "radius");
-    RGBA.roundingPower        = glGetUniformLocation(prog, "roundingPower");
-    RGBA.applyTint            = glGetUniformLocation(prog, "applyTint");
-    RGBA.tint                 = glGetUniformLocation(prog, "tint");
-    RGBA.useAlphaMatte        = glGetUniformLocation(prog, "useAlphaMatte");
+    const auto TEXVERTSRC             = g_pHyprOpenGL->m_shaders->TEXVERTSRC;
+    const auto TEXVERTSRC300          = g_pHyprOpenGL->m_shaders->TEXVERTSRC300;
 
-    prog                      = CreateProgram(TEXVERTSRC, TEXFRAGSRCRGBX_DARK);
-    RGBX.program              = prog;
-    RGBX.tex                  = glGetUniformLocation(prog, "tex");
-    RGBX.proj                 = glGetUniformLocation(prog, "proj");
-    RGBX.alpha                = glGetUniformLocation(prog, "alpha");
-    RGBX.texAttrib            = glGetAttribLocation(prog, "texcoord");
-    RGBX.posAttrib            = glGetAttribLocation(prog, "pos");
-    RGBX.discardOpaque        = glGetUniformLocation(prog, "discardOpaque");
-    RGBX.discardAlpha         = glGetUniformLocation(prog, "discardAlpha");
-    RGBX.discardAlphaValue    = glGetUniformLocation(prog, "discardAlphaValue");
-    RGBX.topLeft              = glGetUniformLocation(prog, "topLeft");
-    RGBX.fullSize             = glGetUniformLocation(prog, "fullSize");
-    RGBX.radius               = glGetUniformLocation(prog, "radius");
-    RGBX.roundingPower        = glGetUniformLocation(prog, "roundingPower");
-    RGBX.applyTint            = glGetUniformLocation(prog, "applyTint");
-    RGBX.tint                 = glGetUniformLocation(prog, "tint");
+    const auto TEXFRAGSRCCM           = invert(processShader("CM.frag", includes));
+    const auto TEXFRAGSRCRGBA         = invert(processShader("rgba.frag", includes));
+    const auto TEXFRAGSRCRGBX         = invert(processShader("rgbx.frag", includes));
+    const auto TEXFRAGSRCEXT          = invert(processShader("ext.frag", includes));
 
-    prog                     = CreateProgram(TEXVERTSRC, TEXFRAGSRCEXT_DARK);
-    EXT.program              = prog;
-    EXT.tex                  = glGetUniformLocation(prog, "tex");
-    EXT.proj                 = glGetUniformLocation(prog, "proj");
-    EXT.alpha                = glGetUniformLocation(prog, "alpha");
-    EXT.posAttrib            = glGetAttribLocation(prog, "pos");
-    EXT.texAttrib            = glGetAttribLocation(prog, "texcoord");
-    EXT.discardOpaque        = glGetUniformLocation(prog, "discardOpaque");
-    EXT.discardAlpha         = glGetUniformLocation(prog, "discardAlpha");
-    EXT.discardAlphaValue    = glGetUniformLocation(prog, "discardAlphaValue");
-    EXT.topLeft              = glGetUniformLocation(prog, "topLeft");
-    EXT.fullSize             = glGetUniformLocation(prog, "fullSize");
-    EXT.radius               = glGetUniformLocation(prog, "radius");
-    EXT.applyTint            = glGetUniformLocation(prog, "applyTint");
-    EXT.roundingPower        = glGetUniformLocation(prog, "roundingPower");
-    EXT.tint                 = glGetUniformLocation(prog, "tint");
+    CM.program = createProgram(TEXVERTSRC300, TEXFRAGSRCCM, true, true);
+    if (CM.program) {
+        getCMShaderUniforms(CM);
+        getRoundingShaderUniforms(CM);
+        CM.proj              = glGetUniformLocation(CM.program, "proj");
+        CM.tex               = glGetUniformLocation(CM.program, "tex");
+        CM.texType           = glGetUniformLocation(CM.program, "texType");
+        CM.alphaMatte        = glGetUniformLocation(CM.program, "texMatte");
+        CM.alpha             = glGetUniformLocation(CM.program, "alpha");
+        CM.texAttrib         = glGetAttribLocation(CM.program, "texcoord");
+        CM.matteTexAttrib    = glGetAttribLocation(CM.program, "texcoordMatte");
+        CM.posAttrib         = glGetAttribLocation(CM.program, "pos");
+        CM.discardOpaque     = glGetUniformLocation(CM.program, "discardOpaque");
+        CM.discardAlpha      = glGetUniformLocation(CM.program, "discardAlpha");
+        CM.discardAlphaValue = glGetUniformLocation(CM.program, "discardAlphaValue");
+        CM.applyTint         = glGetUniformLocation(CM.program, "applyTint");
+        CM.tint              = glGetUniformLocation(CM.program, "tint");
+        CM.useAlphaMatte     = glGetUniformLocation(CM.program, "useAlphaMatte");
+    } else {
+        if (g_pHyprOpenGL->m_shaders->m_shCM.program) throw std::runtime_error("Failed to create Shader: CM.frag, check hyprland logs");
+    }
+
+    RGBA.program = createProgram(TEXVERTSRC, TEXFRAGSRCRGBA, true, true);
+    if (!RGBA.program) throw std::runtime_error("Failed to create Shader: rgba.frag, check hyprland logs");
+    getRoundingShaderUniforms(RGBA);
+    RGBA.proj              = glGetUniformLocation(RGBA.program, "proj");
+    RGBA.tex               = glGetUniformLocation(RGBA.program, "tex");
+    RGBA.alphaMatte        = glGetUniformLocation(RGBA.program, "texMatte");
+    RGBA.alpha             = glGetUniformLocation(RGBA.program, "alpha");
+    RGBA.texAttrib         = glGetAttribLocation(RGBA.program, "texcoord");
+    RGBA.matteTexAttrib    = glGetAttribLocation(RGBA.program, "texcoordMatte");
+    RGBA.posAttrib         = glGetAttribLocation(RGBA.program, "pos");
+    RGBA.discardOpaque     = glGetUniformLocation(RGBA.program, "discardOpaque");
+    RGBA.discardAlpha      = glGetUniformLocation(RGBA.program, "discardAlpha");
+    RGBA.discardAlphaValue = glGetUniformLocation(RGBA.program, "discardAlphaValue");
+    RGBA.applyTint         = glGetUniformLocation(RGBA.program, "applyTint");
+    RGBA.tint              = glGetUniformLocation(RGBA.program, "tint");
+    RGBA.useAlphaMatte     = glGetUniformLocation(RGBA.program, "useAlphaMatte");
+
+
+    RGBX.program = createProgram(TEXVERTSRC, TEXFRAGSRCRGBX, true, true);
+    if (!RGBX.program) throw std::runtime_error("Failed to create Shader: rgbx.frag, check hyprland logs");
+    getRoundingShaderUniforms(RGBX);
+    RGBX.tex               = glGetUniformLocation(RGBX.program, "tex");
+    RGBX.proj              = glGetUniformLocation(RGBX.program, "proj");
+    RGBX.alpha             = glGetUniformLocation(RGBX.program, "alpha");
+    RGBX.texAttrib         = glGetAttribLocation(RGBX.program, "texcoord");
+    RGBX.posAttrib         = glGetAttribLocation(RGBX.program, "pos");
+    RGBX.discardOpaque     = glGetUniformLocation(RGBX.program, "discardOpaque");
+    RGBX.discardAlpha      = glGetUniformLocation(RGBX.program, "discardAlpha");
+    RGBX.discardAlphaValue = glGetUniformLocation(RGBX.program, "discardAlphaValue");
+    RGBX.applyTint         = glGetUniformLocation(RGBX.program, "applyTint");
+    RGBX.tint              = glGetUniformLocation(RGBX.program, "tint");
+
+    EXT.program = createProgram(TEXVERTSRC, TEXFRAGSRCEXT, true, true);
+    if (!EXT.program) throw std::runtime_error("Failed to create Shader: ext.frag, check hyprland logs");
+    getRoundingShaderUniforms(EXT);
+    EXT.tex               = glGetUniformLocation(EXT.program, "tex");
+    EXT.proj              = glGetUniformLocation(EXT.program, "proj");
+    EXT.alpha             = glGetUniformLocation(EXT.program, "alpha");
+    EXT.posAttrib         = glGetAttribLocation(EXT.program, "pos");
+    EXT.texAttrib         = glGetAttribLocation(EXT.program, "texcoord");
+    EXT.discardOpaque     = glGetUniformLocation(EXT.program, "discardOpaque");
+    EXT.discardAlpha      = glGetUniformLocation(EXT.program, "discardAlpha");
+    EXT.discardAlphaValue = glGetUniformLocation(EXT.program, "discardAlphaValue");
+    EXT.applyTint         = glGetUniformLocation(EXT.program, "applyTint");
+    EXT.tint              = glGetUniformLocation(EXT.program, "tint");
 
     g_pHyprRenderer->unsetEGL();
 }
@@ -108,52 +145,4 @@ void ShaderHolder::Destroy()
     EXT.destroy();
 
     g_pHyprRenderer->unsetEGL();
-}
-
-GLuint ShaderHolder::CompileShader(const GLuint& type, std::string src)
-{
-    auto shader = glCreateShader(type);
-
-    auto shaderSource = src.c_str();
-
-    glShaderSource(shader, 1, (const GLchar**)&shaderSource, nullptr);
-    glCompileShader(shader);
-
-    GLint ok;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &ok);
-    if (!ok) {
-        char infoLog[512];
-        glGetShaderInfoLog(shader, 512, NULL, infoLog);
-        Debug::log(ERR, "Error compiling shader: {}", infoLog);
-        throw std::runtime_error(std::format("Error compiling shader \"{}\": {}", src, infoLog));
-    }
-
-    return shader;
-}
-
-GLuint ShaderHolder::CreateProgram(const std::string& vert, const std::string& frag)
-{
-    auto vertCompiled = CompileShader(GL_VERTEX_SHADER, vert);
-    auto fragCompiled = CompileShader(GL_FRAGMENT_SHADER, frag);
-
-    auto prog = glCreateProgram();
-    glAttachShader(prog, vertCompiled);
-    glAttachShader(prog, fragCompiled);
-    glLinkProgram(prog);
-
-    glDetachShader(prog, vertCompiled);
-    glDetachShader(prog, fragCompiled);
-    glDeleteShader(vertCompiled);
-    glDeleteShader(fragCompiled);
-
-    GLint ok;
-    glGetProgramiv(prog, GL_LINK_STATUS, &ok);
-    if (!ok) {
-        char infoLog[512];
-        glGetShaderInfoLog(prog, 512, NULL, infoLog);
-        Debug::log(ERR, "Error linking shader: %s", infoLog);
-        throw std::runtime_error(std::string("Error linking shader: ") + infoLog);
-    }
-
-    return prog;
 }
