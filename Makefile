@@ -8,6 +8,7 @@ OUT_DIR = out
 
 SRCS = $(wildcard $(SRC_DIR)/*.cpp)
 OBJS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRCS))
+DEPS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.d, $(SRCS))
 
 TARGET = $(OUT_DIR)/hypr-darkwindow.so
 
@@ -16,9 +17,15 @@ all: $(TARGET)
 $(TARGET): $(OBJS)
 	$(CXX) -shared $^ -o $@
 
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
-	mkdir -p $(OBJ_DIR)
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp $(OBJ_DIR)/%.d | $(OBJ_DIR)
+	$(CXX) $(CXXFLAGS) -MT $@ -MMD -MP -MF $(OBJ_DIR)/$*.d -c $< -o $@
+
+$(OBJ_DIR):
+	@mkdir -p $@
+
+$(DEPS):
+
+include $(wildcard $(DEPS))
 
 clean:
 	rm -rf $(OUT_DIR)

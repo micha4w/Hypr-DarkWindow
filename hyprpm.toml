@@ -37,5 +37,5 @@ description = "Invert the colors of specific Windows"
 authors = ["micha4w"]
 output = "out/hypr-darkwindow.so"
 build = [
-    "make all",
+    "make all -j",
 ]
