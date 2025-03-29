@@ -3,7 +3,47 @@
 #include <string>
 #include <format>
 
-#include <hyprland/src/render/shaders/Textures.hpp>
+#pragma region "Stolen directly from Textures.hpp"
+inline static constexpr auto ROUNDED_SHADER_FUNC = [](const std::string colorVarName) -> std::string {
+    return R"#(
+
+    // shoutout me: I fixed this shader being a bit pixelated while watching hentai
+
+    highp vec2 pixCoord = vec2(gl_FragCoord);
+    pixCoord -= topLeft + fullSize * 0.5;
+    pixCoord *= vec2(lessThan(pixCoord, vec2(0.0))) * -2.0 + 1.0;
+    pixCoord -= fullSize * 0.5 - radius;
+    pixCoord += vec2(1.0, 1.0) / fullSize; // center the pix dont make it top-left
+
+    // smoothing constant for the edge: more = blurrier, but smoother
+    const float SMOOTHING_CONSTANT = 0.5875806;
+
+    if (pixCoord.x + pixCoord.y > radius) {
+
+	      float dist = pow(pow(pixCoord.x, roundingPower) + pow(pixCoord.y, roundingPower), 1.0/roundingPower);
+
+	      if (dist > radius + SMOOTHING_CONSTANT)
+	          discard;
+
+        float normalized = 1.0 - smoothstep(0.0, 1.0, (dist - radius + SMOOTHING_CONSTANT) / (SMOOTHING_CONSTANT * 2.0));
+
+	      )#" +
+        colorVarName + R"#( = )#" + colorVarName + R"#( * normalized;
+    }
+)#";
+};
+
+inline const std::string TEXVERTSRC = R"#(
+uniform mat3 proj;
+attribute vec2 pos;
+attribute vec2 texcoord;
+varying vec2 v_texcoord;
+
+void main() {
+    gl_Position = vec4(proj * vec3(pos, 1.0), 1.0);
+    v_texcoord = texcoord;
+})#";
+#pragma endregion
 
 
 inline static const std::string DARK_MODE_FUNC = R"glsl(
