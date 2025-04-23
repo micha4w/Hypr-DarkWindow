@@ -90,7 +90,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
     });
     HyprlandAPI::addDispatcherV2(PHANDLE, "invertactivewindow", [&](std::string args) {
         std::lock_guard<std::mutex> lock(g_InverterMutex);
-        g_WindowInverter.ToggleInvert(g_pCompositor->m_pLastWindow.lock());
+        g_WindowInverter.ToggleInvert(g_pCompositor->m_lastWindow.lock());
         return SDispatchResult{};
     });
 

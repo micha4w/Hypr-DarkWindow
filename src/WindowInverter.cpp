@@ -115,6 +115,6 @@ void WindowInverter::Reload()
 {
     m_InvertedWindows = {};
 
-    for (const auto& window : g_pCompositor->m_vWindows)
+    for (const auto& window : g_pCompositor->m_windows)
         InvertIfMatches(window);
 }
