@@ -142,13 +142,15 @@ static void getCMShaderUniforms(CShader& shader) {
     shader.skipCM          = glGetUniformLocation(shader.program, "skipCM");
     shader.sourceTF        = glGetUniformLocation(shader.program, "sourceTF");
     shader.targetTF        = glGetUniformLocation(shader.program, "targetTF");
-    shader.sourcePrimaries = glGetUniformLocation(shader.program, "sourcePrimaries");
+    shader.srcTFRange      = glGetUniformLocation(shader.program, "srcTFRange");
+    shader.dstTFRange      = glGetUniformLocation(shader.program, "dstTFRange");
     shader.targetPrimaries = glGetUniformLocation(shader.program, "targetPrimaries");
     shader.maxLuminance    = glGetUniformLocation(shader.program, "maxLuminance");
     shader.dstMaxLuminance = glGetUniformLocation(shader.program, "dstMaxLuminance");
     shader.dstRefLuminance = glGetUniformLocation(shader.program, "dstRefLuminance");
     shader.sdrSaturation   = glGetUniformLocation(shader.program, "sdrSaturation");
     shader.sdrBrightness   = glGetUniformLocation(shader.program, "sdrBrightnessMultiplier");
+    shader.convertMatrix   = glGetUniformLocation(shader.program, "convertMatrix");
 }
 
 // shader has #include "rounding.glsl"
