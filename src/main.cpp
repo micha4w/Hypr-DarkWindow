@@ -27,7 +27,7 @@ void hkSurfacePassDraw(CSurfacePassElement* thisptr, const CRegion& damage) {
         g_WindowInverter.OnRenderWindowPre(thisptr->data.pWindow);
     }
 
-    ((decltype(&hkSurfacePassDraw))g_surfacePassDraw->m_pOriginal)(thisptr, damage);
+    ((decltype(&hkSurfacePassDraw))g_surfacePassDraw->m_original)(thisptr, damage);
 
     {
         std::lock_guard<std::mutex> lock(g_InverterMutex);
