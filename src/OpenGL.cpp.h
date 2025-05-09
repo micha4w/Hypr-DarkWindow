@@ -138,7 +138,7 @@ static std::string processShader(const std::string& filename, const std::map<std
 }
 
 // shader has #include "CM.glsl"
-static void getCMShaderUniforms(CShader& shader) {
+static void getCMShaderUniforms(SShader& shader) {
     shader.skipCM          = glGetUniformLocation(shader.program, "skipCM");
     shader.sourceTF        = glGetUniformLocation(shader.program, "sourceTF");
     shader.targetTF        = glGetUniformLocation(shader.program, "targetTF");
@@ -154,7 +154,7 @@ static void getCMShaderUniforms(CShader& shader) {
 }
 
 // shader has #include "rounding.glsl"
-static void getRoundingShaderUniforms(CShader& shader) {
+static void getRoundingShaderUniforms(SShader& shader) {
     shader.topLeft       = glGetUniformLocation(shader.program, "topLeft");
     shader.fullSize      = glGetUniformLocation(shader.program, "fullSize");
     shader.radius        = glGetUniformLocation(shader.program, "radius");
