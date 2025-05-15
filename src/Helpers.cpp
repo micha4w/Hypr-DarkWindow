@@ -82,6 +82,7 @@ void ShaderHolder::Init()
         CM.applyTint         = glGetUniformLocation(CM.program, "applyTint");
         CM.tint              = glGetUniformLocation(CM.program, "tint");
         CM.useAlphaMatte     = glGetUniformLocation(CM.program, "useAlphaMatte");
+        CM.createVao();
     } else {
         if (g_pHyprOpenGL->m_shaders->m_shCM.program) throw std::runtime_error("Failed to create Shader: CM.frag, check hyprland logs");
     }
@@ -102,7 +103,7 @@ void ShaderHolder::Init()
     RGBA.applyTint         = glGetUniformLocation(RGBA.program, "applyTint");
     RGBA.tint              = glGetUniformLocation(RGBA.program, "tint");
     RGBA.useAlphaMatte     = glGetUniformLocation(RGBA.program, "useAlphaMatte");
-
+    RGBA.createVao();
 
     RGBX.program = createProgram(TEXVERTSRC, TEXFRAGSRCRGBX, true, true);
     if (!RGBX.program) throw std::runtime_error("Failed to create Shader: rgbx.frag, check hyprland logs");
@@ -117,6 +118,7 @@ void ShaderHolder::Init()
     RGBX.discardAlphaValue = glGetUniformLocation(RGBX.program, "discardAlphaValue");
     RGBX.applyTint         = glGetUniformLocation(RGBX.program, "applyTint");
     RGBX.tint              = glGetUniformLocation(RGBX.program, "tint");
+    RGBX.createVao();
 
     EXT.program = createProgram(TEXVERTSRC, TEXFRAGSRCEXT, true, true);
     if (!EXT.program) throw std::runtime_error("Failed to create Shader: ext.frag, check hyprland logs");
@@ -131,6 +133,7 @@ void ShaderHolder::Init()
     EXT.discardAlphaValue = glGetUniformLocation(EXT.program, "discardAlphaValue");
     EXT.applyTint         = glGetUniformLocation(EXT.program, "applyTint");
     EXT.tint              = glGetUniformLocation(EXT.program, "tint");
+    EXT.createVao();
 
     g_pHyprRenderer->unsetEGL();
 }
