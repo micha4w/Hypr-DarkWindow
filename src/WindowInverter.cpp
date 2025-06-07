@@ -5,19 +5,27 @@
 
 void WindowInverter::OnRenderWindowPre(PHLWINDOW window)
 {
-    bool shouldInvert =
-        (std::find(m_InvertedWindows.begin(), m_InvertedWindows.end(), window)
-            != m_InvertedWindows.end()) ^
-        (std::find(m_ManuallyInvertedWindows.begin(), m_ManuallyInvertedWindows.end(), window)
-            != m_ManuallyInvertedWindows.end());
+    m_ShadersSwapped.reset();
 
-    if (shouldInvert)
+    auto shader = m_ShadedWindows.find(window);
+    auto manualShader = m_ManuallyShadedWindows.find(window);
+    if (shader != m_ShadedWindows.end() && manualShader != m_ManuallyShadedWindows.end())
     {
-        std::swap(m_Shaders.EXT, g_pHyprOpenGL->m_shaders->m_shEXT);
-        std::swap(m_Shaders.RGBA, g_pHyprOpenGL->m_shaders->m_shRGBA);
-        std::swap(m_Shaders.RGBX, g_pHyprOpenGL->m_shaders->m_shRGBX);
-        std::swap(m_Shaders.CM, g_pHyprOpenGL->m_shaders->m_shCM);
-        m_ShadersSwapped = true;
+        if (shader->second->ID != manualShader->second->ID)
+            m_ShadersSwapped = manualShader->second;
+    }
+    else if (manualShader != m_ManuallyShadedWindows.end())
+        m_ShadersSwapped = manualShader->second;
+    else if (shader != m_ShadedWindows.end())
+        m_ShadersSwapped = shader->second;
+
+    if (m_ShadersSwapped) {
+        (*m_ShadersSwapped)->CompiledShaders->ApplyArgs((*m_ShadersSwapped)->Args);
+
+        std::swap((*m_ShadersSwapped)->CompiledShaders->EXT, g_pHyprOpenGL->m_shaders->m_shEXT);
+        std::swap((*m_ShadersSwapped)->CompiledShaders->RGBA, g_pHyprOpenGL->m_shaders->m_shRGBA);
+        std::swap((*m_ShadersSwapped)->CompiledShaders->RGBX, g_pHyprOpenGL->m_shaders->m_shRGBX);
+        std::swap((*m_ShadersSwapped)->CompiledShaders->CM, g_pHyprOpenGL->m_shaders->m_shCM);
     }
 }
 
@@ -25,46 +33,26 @@ void WindowInverter::OnRenderWindowPost()
 {
     if (m_ShadersSwapped)
     {
-        std::swap(m_Shaders.EXT, g_pHyprOpenGL->m_shaders->m_shEXT);
-        std::swap(m_Shaders.RGBA, g_pHyprOpenGL->m_shaders->m_shRGBA);
-        std::swap(m_Shaders.RGBX, g_pHyprOpenGL->m_shaders->m_shRGBX);
-        std::swap(m_Shaders.CM, g_pHyprOpenGL->m_shaders->m_shCM);
-        m_ShadersSwapped = false;
+        std::swap((*m_ShadersSwapped)->CompiledShaders->EXT, g_pHyprOpenGL->m_shaders->m_shEXT);
+        std::swap((*m_ShadersSwapped)->CompiledShaders->RGBA, g_pHyprOpenGL->m_shaders->m_shRGBA);
+        std::swap((*m_ShadersSwapped)->CompiledShaders->RGBX, g_pHyprOpenGL->m_shaders->m_shRGBX);
+        std::swap((*m_ShadersSwapped)->CompiledShaders->CM, g_pHyprOpenGL->m_shaders->m_shCM);
+        m_ShadersSwapped.reset();
     }
 }
 
 void WindowInverter::OnWindowClose(PHLWINDOW window)
 {
-    static const auto remove = [](std::vector<PHLWINDOW>& windows, PHLWINDOW& window) {
-        auto windowIt = std::find(windows.begin(), windows.end(), window);
-        if (windowIt != windows.end())
-        {
-            std::swap(*windowIt, *(windows.end() - 1));
-            windows.pop_back();
-        }
-    };
-
-    remove(m_InvertedWindows, window);
-    remove(m_ManuallyInvertedWindows, window);
-}
-
-void WindowInverter::Init()
-{
-    m_Shaders.Init();
+    m_ShadedWindows.erase(window);
+    m_ManuallyShadedWindows.erase(window);
 }
 
 void WindowInverter::Unload()
 {
-    if (m_ShadersSwapped)
-    {
-        std::swap(m_Shaders.EXT, g_pHyprOpenGL->m_shaders->m_shEXT);
-        std::swap(m_Shaders.RGBA, g_pHyprOpenGL->m_shaders->m_shRGBA);
-        std::swap(m_Shaders.RGBX, g_pHyprOpenGL->m_shaders->m_shRGBX);
-        std::swap(m_Shaders.CM, g_pHyprOpenGL->m_shaders->m_shCM);
-        m_ShadersSwapped = false;
-    }
+    OnRenderWindowPost();
 
-    m_Shaders.Destroy();
+    m_Shaders.clear();
+    m_CompiledShaders.clear();
 }
 
 void WindowInverter::InvertIfMatches(PHLWINDOW window)
@@ -73,47 +61,73 @@ void WindowInverter::InvertIfMatches(PHLWINDOW window)
     if (!window) return;
 
     std::vector<SP<CWindowRule>> rules = g_pConfigManager->getMatchingRules(window);
-    bool shouldInvert = std::any_of(rules.begin(), rules.end(), [](const SP<CWindowRule>& rule) {
-        return rule->m_rule == "plugin:invertwindow";
-    });
-
-    auto windowIt = std::find(m_InvertedWindows.begin(), m_InvertedWindows.end(), window);
-    if (shouldInvert != (windowIt != m_InvertedWindows.end()))
+    std::optional<std::string> shader;
+    for (const SP<CWindowRule>& rule : rules)
     {
-        if (shouldInvert)
-            m_InvertedWindows.push_back(window);
-        else
+        if (rule->m_rule == "plugin:invertwindow")
         {
-            std::swap(*windowIt, *(m_InvertedWindows.end() - 1));
-            m_InvertedWindows.pop_back();
+            shader = "invert";
+            break;
         }
+
+        if (rule->m_rule.starts_with("plugin:shadewindow:"))
+        {
+            shader = rule->m_rule.substr(std::string("plugin:shadewindow:").size());
+            break;
+        }
+    }
+
+    auto windowIt = m_ShadedWindows.find(window);
+    std::optional<std::string> currentShader;
+    if (windowIt != m_ShadedWindows.end()) currentShader = windowIt->second->ID;
+
+    if (shader != currentShader)
+    {
+        if (shader)
+            m_ShadedWindows[window] = m_Shaders.at(*shader).get();
+        else
+            m_ShadedWindows.erase(window);
 
         g_pHyprRenderer->damageWindow(window);
     }
 }
 
 
-void WindowInverter::ToggleInvert(PHLWINDOW window)
+void WindowInverter::ToggleInvert(PHLWINDOW window, const std::string& shader)
 {
     if (!window)
         return;
+    
+    auto windowIt = m_ManuallyShadedWindows.find(window);
+    std::optional<std::string> currentShader;
+    if (windowIt != m_ManuallyShadedWindows.end()) currentShader = windowIt->second->ID;
 
-    auto windowIt = std::find(m_ManuallyInvertedWindows.begin(), m_ManuallyInvertedWindows.end(), window);
-    if (windowIt == m_ManuallyInvertedWindows.end())
-        m_ManuallyInvertedWindows.push_back(window);
+    if (!currentShader || shader != *currentShader)
+        m_ManuallyShadedWindows[window] = m_Shaders.at(shader).get();
     else
-    {
-        std::swap(*windowIt, *(m_ManuallyInvertedWindows.end() - 1));
-        m_ManuallyInvertedWindows.pop_back();
-    }
+        m_ManuallyShadedWindows.erase(window);
 
     g_pHyprRenderer->damageWindow(window);
 }
 
-
-void WindowInverter::Reload()
+void WindowInverter::AddShader(std::string id, std::variant<std::string, std::string> nameOrPath, std::string args)
 {
-    m_InvertedWindows = {};
+    if (m_Shaders.contains(id)) return;
+
+    if (!m_CompiledShaders.contains(nameOrPath))
+        m_CompiledShaders[nameOrPath] = std::make_unique<ShaderHolder>(nameOrPath);
+
+    auto compiled = m_CompiledShaders[nameOrPath].get();
+
+    auto parsedArgs = parseArgs(args);
+    compiled->LoadArgs(parsedArgs);
+    m_Shaders[id] = std::make_unique<ShaderConfig>(id, compiled, parsedArgs);
+}
+
+
+void WindowInverter::ReshadeWindows()
+{
+    m_ShadedWindows = {};
 
     for (const auto& window : g_pCompositor->m_windows)
         InvertIfMatches(window);

@@ -2,13 +2,35 @@
 
 #include <exception>
 #include <unordered_set>
+#include <ranges>
 
 #include <hyprland/src/Compositor.hpp>
+#include <hyprutils/utils/ScopeGuard.hpp>
 
 #include "OpenGL.cpp.h"
 
 
-static std::string invert(std::string source) {
+static const std::map<std::string, std::string> WINDOW_SHADER_SOURCES = {
+    { "invert", R"glsl(
+        void windowShader(inout vec4 color) {
+            // Invert Colors
+            color.rgb = vec3(1.) - vec3(.88, .9, .92) * color.rgb;
+
+            // Invert Hue
+            color.rgb = dot(vec3(0.26312, 0.5283, 0.10488), color.rgb) * 2.0 - color.rgb;
+        }
+    )glsl" },
+    { "tint", R"glsl(
+        uniform vec3 tintColor;
+        uniform float tintFactor;
+        
+        void windowShader(inout vec4 color) {
+            color.rgb = color.rgb * (1.0 - tintFactor) + tintColor * tintFactor;
+        }
+    )glsl" },
+};
+
+static std::string invert(std::string source, const std::string& windowShader) {
     size_t out = source.find("layout(location = 0) out vec4 ");
     std::string outVar;
     if (out != std::string::npos) {
@@ -33,24 +55,165 @@ static std::string invert(std::string source) {
 
     Hyprutils::String::replaceInString(source, "void main(", "void main_uninverted(");
 
-    source += std::format(R"glsl(
-void main() {{
+    source += windowShader + R"glsl(
+
+void main() {
     main_uninverted();
 
-    // Invert Colors
-    {0}.rgb = vec3(1.) - vec3(.88, .9, .92) * {0}.rgb;
+    windowShader()glsl" + outVar + ");\n}";
 
-    // Invert Hue
-    {0}.rgb = dot(vec3(0.26312, 0.5283, 0.10488), {0}.rgb) * 2.0 - {0}.rgb;
-}}
-    )glsl", outVar);
 
     return source;
 }
 
-void ShaderHolder::Init()
+std::map<std::string, std::vector<float>> parseArgs(const std::string& args)
+{
+    std::map<std::string, std::vector<float>> out;
+    std::stringstream ss(args);
+
+    ss >> std::ws;
+    while (!ss.eof())
+    {
+        std::string name;
+        std::getline(ss, name, '=');
+        name = Hyprutils::String::trim(name);
+        for (auto [i, c] : std::views::enumerate(name))
+        {
+            bool first = c>='a' && c<='z' || c>='A' && c<='Z' || c=='_';
+            bool other = c>='0' && c<='9';
+
+            if (!(first || other && i != 0))
+                throw std::runtime_error("invalid shader uniform name '" + name + "'");
+        }
+
+        ss >> std::ws;
+        
+        std::vector<float> values;
+        if (ss.peek() == '[')
+        {
+            ss.get();
+            while (1)
+            {
+                std::string rem(ss.str().substr(ss.tellg()));
+
+                float next;
+                ss >> next;
+
+                if (ss.fail()) break;
+                values.push_back(next);
+
+                ss >> std::ws;
+                if (ss.peek() == ',')
+                {
+                    ss.get();
+                    ss >> std::ws;
+                }
+                if (ss.peek() == ']') {
+                    ss.get();
+                    break;
+                }
+
+                if (ss.eof()) throw std::runtime_error("expected ']' not found");
+            }
+
+            if (values.size() < 1 || values.size() > 4)
+                throw std::runtime_error("only support from 1 to 4 values");
+        }
+        else
+        {
+            float next;
+            ss >> next;
+            values.push_back(next);
+        }
+        if (ss.fail()) throw std::runtime_error("expected a float");
+        ss >> std::ws;
+
+        out[name] = values;
+    }
+
+    return out;
+}
+
+void ShaderHolder::LoadArgs(std::map<std::string, std::vector<float>> args)
 {
     g_pHyprRenderer->makeEGLCurrent();
+    Hyprutils::Utils::CScopeGuard _egl([&]{ g_pHyprRenderer->unsetEGL(); });
+
+    for (auto& [name, _] : args)
+    {
+        if (UniformLocations.contains(name)) continue;
+
+        SShader* shaders[4] = { &CM, &RGBA, &RGBX, &EXT };
+        std::array<GLint, 4> locs;
+        for (int i = 0; i < 4; i++)
+        {
+            if (!shaders[i]->program) continue;
+
+            GLint loc = glGetUniformLocation(shaders[i]->program, name.c_str());
+            if (loc == -1) throw std::runtime_error("Shader failed to find the uniform: " + name);
+            locs[i] = loc;
+        }
+
+        UniformLocations[name] = locs;
+    }
+}
+
+void ShaderHolder::ApplyArgs(std::map<std::string, std::vector<float>> args) noexcept
+{
+    SShader* shaders[4] = { &CM, &RGBA, &RGBX, &EXT };
+    for (int i = 0; i < 4; i++)
+    {
+        if (!shaders[i]->program) continue;
+
+        glUseProgram(shaders[i]->program);
+        for (auto& [name, values] : args)
+        {
+            GLint loc = UniformLocations[name][i];
+            switch (values.size())
+            {
+                case 1:
+                    glUniform1f(loc, values[0]);
+                    break;
+                case 2:
+                    glUniform2f(loc, values[0], values[1]);
+                    break;
+                case 3:
+                    glUniform3f(loc, values[0], values[1], values[2]);
+                    break;
+                case 4:
+                    glUniform4f(loc, values[0], values[1], values[2], values[3]);
+                    break;
+            }
+        }
+    }
+}
+
+
+ShaderHolder::ShaderHolder(std::variant<std::string, std::string> nameOrPath)
+    : NameOrPath(nameOrPath)
+{
+    std::string windowShader;
+    if (NameOrPath.index() == 1)
+    {
+        std::string& path = std::get<1>(NameOrPath);
+        Debug::log(INFO, "Loading shader at path: {}", path);
+
+        std::ifstream file(path);
+        windowShader = std::string(std::istreambuf_iterator(file), {});
+    }
+    else
+    {
+        std::string& name = std::get<0>(NameOrPath);
+        Debug::log(INFO, "Loading shader with name: {}", name);
+
+        auto inlineSource = WINDOW_SHADER_SOURCES.find(name);
+        if (inlineSource == WINDOW_SHADER_SOURCES.end()) throw std::runtime_error("Shader name not found");
+
+        windowShader = inlineSource->second;
+    }
+
+    g_pHyprRenderer->makeEGLCurrent();
+    Hyprutils::Utils::CScopeGuard _egl([&]{ g_pHyprRenderer->unsetEGL(); });
 
     std::map<std::string, std::string> includes;
     loadShaderInclude("rounding.glsl", includes);
@@ -59,10 +222,10 @@ void ShaderHolder::Init()
     const auto TEXVERTSRC             = g_pHyprOpenGL->m_shaders->TEXVERTSRC;
     const auto TEXVERTSRC300          = g_pHyprOpenGL->m_shaders->TEXVERTSRC300;
 
-    const auto TEXFRAGSRCCM           = invert(processShader("CM.frag", includes));
-    const auto TEXFRAGSRCRGBA         = invert(processShader("rgba.frag", includes));
-    const auto TEXFRAGSRCRGBX         = invert(processShader("rgbx.frag", includes));
-    const auto TEXFRAGSRCEXT          = invert(processShader("ext.frag", includes));
+    const auto TEXFRAGSRCCM           = invert(processShader("CM.frag", includes), windowShader);
+    const auto TEXFRAGSRCRGBA         = invert(processShader("rgba.frag", includes), windowShader);
+    const auto TEXFRAGSRCRGBX         = invert(processShader("rgbx.frag", includes), windowShader);
+    const auto TEXFRAGSRCEXT          = invert(processShader("ext.frag", includes), windowShader);
 
     CM.program = createProgram(TEXVERTSRC300, TEXFRAGSRCCM, true, true);
     if (CM.program) {
@@ -131,11 +294,9 @@ void ShaderHolder::Init()
     EXT.discardAlphaValue = glGetUniformLocation(EXT.program, "discardAlphaValue");
     EXT.applyTint         = glGetUniformLocation(EXT.program, "applyTint");
     EXT.tint              = glGetUniformLocation(EXT.program, "tint");
-
-    g_pHyprRenderer->unsetEGL();
 }
 
-void ShaderHolder::Destroy()
+ShaderHolder::~ShaderHolder()
 {
     g_pHyprRenderer->makeEGLCurrent();
 

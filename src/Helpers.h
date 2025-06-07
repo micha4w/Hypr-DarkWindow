@@ -13,7 +13,6 @@ namespace std
     inline void swap(SShader& a, SShader& b)
     {
         // memcpy because speed!
-        // (Would break unordered map, but those aren't in use anyway..)
         uint8_t c[sizeof(SShader)];
         std::memcpy(&c, &a, sizeof(SShader));
         std::memcpy(&a, &b, sizeof(SShader));
@@ -21,13 +20,30 @@ namespace std
     }
 }
 
+std::map<std::string, std::vector<float>> parseArgs(const std::string& args);
+
 struct ShaderHolder
 {
+    std::variant<std::string, std::string> NameOrPath;
+    std::map<std::string, std::array<GLint, 4>> UniformLocations;
+
     SShader CM;
     SShader RGBA;
     SShader RGBX;
     SShader EXT;
 
-    void Init();
-    void Destroy();
+    ShaderHolder(std::variant<std::string, std::string> nameOrPath);
+    ~ShaderHolder();
+    ShaderHolder(const ShaderHolder&) = delete;
+
+    void LoadArgs(std::map<std::string, std::vector<float>> args);
+    void ApplyArgs(std::map<std::string, std::vector<float>> args) noexcept;
+};
+
+
+struct ShaderConfig {
+    std::string ID;
+
+    ShaderHolder* CompiledShaders;
+    std::map<std::string, std::vector<float>> Args;
 };

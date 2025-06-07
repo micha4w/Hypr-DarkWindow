@@ -4,11 +4,25 @@
 #include <hyprland/src/render/pass/SurfacePassElement.hpp>
 #undef private
 
+#define m_failedPluginConfigValues    m_failedPluginConfigValues; friend struct ConfigManagerFriend;
+#include <hyprland/src/config/ConfigManager.hpp>
+#undef m_failedPluginConfigValues
+
+
 #include "WindowInverter.h"
+
+#include <mutex>
+#include <vector>
 
 #include <dlfcn.h>
 
 #include <hyprlang.hpp>
+
+struct ConfigManagerFriend {
+    static auto& GetConfig() {
+        return g_pConfigManager->m_config;
+    }
+};
 
 
 inline HANDLE PHANDLE = nullptr;
@@ -35,13 +49,18 @@ void hkSurfacePassDraw(CSurfacePassElement* thisptr, const CRegion& damage) {
     }
 }
 
+const char* SHADER_CATEGORY = "darkwindow:shader";
+
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 {
     PHANDLE = handle;
 
     {
-        std::lock_guard<std::mutex> lock(g_InverterMutex);
-        g_WindowInverter.Init();
+        auto& config = ConfigManagerFriend::GetConfig();
+        config->addSpecialCategory(SHADER_CATEGORY, { .key = "id", });
+        config->addSpecialConfigValue(SHADER_CATEGORY, "name", "");
+        config->addSpecialConfigValue(SHADER_CATEGORY, "path", "");
+        config->addSpecialConfigValue(SHADER_CATEGORY, "args", "");
     }
 
     g_Callbacks = {};
@@ -49,7 +68,48 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         PHANDLE, "configReloaded",
         [&](void* self, SCallbackInfo&, std::any data) {
             std::lock_guard<std::mutex> lock(g_InverterMutex);
-            g_WindowInverter.Reload();
+
+            g_WindowInverter = WindowInverter();
+
+            auto& config = ConfigManagerFriend::GetConfig();
+            auto ids = config->listKeysForSpecialCategory(SHADER_CATEGORY);
+            for (auto& id : std::set<std::string>(ids.begin(), ids.end())) {
+                auto name = std::any_cast<Hyprlang::STRING>(
+                    config->getSpecialConfigValue(SHADER_CATEGORY, "name", id.c_str()));
+                auto path = std::any_cast<Hyprlang::STRING>(
+                    config->getSpecialConfigValue(SHADER_CATEGORY, "path", id.c_str()));
+                auto args = std::any_cast<Hyprlang::STRING>(
+                    config->getSpecialConfigValue(SHADER_CATEGORY, "args", id.c_str()));
+
+                auto nameOrPath = std::string(path) != "" ?
+                    std::variant<std::string, std::string>{ std::in_place_index<1>, path} :
+                    std::variant<std::string, std::string>{ std::in_place_index<0>, name};
+
+                try
+                {
+                    g_WindowInverter.AddShader(id, nameOrPath, args);
+                }
+                catch (const std::exception& ex)
+                {
+                    Debug::log(ERR, "Failed to load shader {}", ex.what());
+                    HyprlandAPI::addNotification(
+                        PHANDLE,
+                        std::string("Failed to load ") + SHADER_CATEGORY + "[" + id + "]: " + ex.what(),
+                        CHyprColor(0xFFFF0000),
+                        25'000
+                    );
+                }
+            }
+
+            try {
+                // Always add the invert shader if it doesnt already exist, because backwards compatibility!
+                g_WindowInverter.AddShader("invert", std::variant<std::string, std::string>{ std::in_place_index<0>, "invert" }, "");
+            } catch (const std::exception& ex) {
+                Debug::log(ERR, "Failed to load shader {}", ex.what());
+            }
+
+            Debug::log(INFO, "Compiled all shaders");
+            g_WindowInverter.ReshadeWindows();
         }
     ));
     g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
@@ -83,14 +143,28 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
     g_surfacePassDraw = HyprlandAPI::createFunctionHook(handle, pDraw->address, (void*)&hkSurfacePassDraw);
     g_surfacePassDraw->hook();
 
+    // Keep these keywords because backwards compatibility
     HyprlandAPI::addDispatcherV2(PHANDLE, "invertwindow", [&](std::string args) {
         std::lock_guard<std::mutex> lock(g_InverterMutex);
-        g_WindowInverter.ToggleInvert(g_pCompositor->getWindowByRegex(args));
+        g_WindowInverter.ToggleInvert(g_pCompositor->getWindowByRegex(args), "invert");
         return SDispatchResult{};
     });
     HyprlandAPI::addDispatcherV2(PHANDLE, "invertactivewindow", [&](std::string args) {
         std::lock_guard<std::mutex> lock(g_InverterMutex);
-        g_WindowInverter.ToggleInvert(g_pCompositor->m_lastWindow.lock());
+        g_WindowInverter.ToggleInvert(g_pCompositor->m_lastWindow.lock(), "invert");
+        return SDispatchResult{};
+    });
+
+    HyprlandAPI::addDispatcherV2(PHANDLE, "shadewindow", [&](std::string args) {
+        std::lock_guard<std::mutex> lock(g_InverterMutex);
+        size_t space = args.find(" ");
+        if (space == std::string::npos) throw std::runtime_error("Expected 2 Arguments: <WINDOW> <SHADER>");
+        g_WindowInverter.ToggleInvert(g_pCompositor->getWindowByRegex(args.substr(0, space)), args.substr(space + 1));
+        return SDispatchResult{};
+    });
+    HyprlandAPI::addDispatcherV2(PHANDLE, "shadeactivewindow", [&](std::string args) {
+        std::lock_guard<std::mutex> lock(g_InverterMutex);
+        g_WindowInverter.ToggleInvert(g_pCompositor->m_lastWindow.lock(), args);
         return SDispatchResult{};
     });
 
@@ -107,6 +181,12 @@ APICALL EXPORT void PLUGIN_EXIT()
     std::lock_guard<std::mutex> lock(g_InverterMutex);
     g_Callbacks = {};
     g_WindowInverter.Unload();
+
+    auto& config = ConfigManagerFriend::GetConfig();
+    config->removeSpecialConfigValue(SHADER_CATEGORY, "name");
+    config->removeSpecialConfigValue(SHADER_CATEGORY, "path");
+    config->removeSpecialConfigValue(SHADER_CATEGORY, "args");
+    config->removeSpecialCategory(SHADER_CATEGORY);
 }
 
 APICALL EXPORT std::string PLUGIN_API_VERSION()
