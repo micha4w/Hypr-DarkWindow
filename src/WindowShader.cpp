@@ -1,9 +1,9 @@
-#include "WindowInverter.h"
+#include "WindowShader.h"
 
 #include <hyprutils/string/String.hpp>
 
 
-void WindowInverter::OnRenderWindowPre(PHLWINDOW window)
+void WindowShader::OnRenderWindowPre(PHLWINDOW window)
 {
     m_ShadersSwapped.reset();
 
@@ -29,7 +29,7 @@ void WindowInverter::OnRenderWindowPre(PHLWINDOW window)
     }
 }
 
-void WindowInverter::OnRenderWindowPost()
+void WindowShader::OnRenderWindowPost()
 {
     if (m_ShadersSwapped)
     {
@@ -41,13 +41,13 @@ void WindowInverter::OnRenderWindowPost()
     }
 }
 
-void WindowInverter::OnWindowClose(PHLWINDOW window)
+void WindowShader::OnWindowClose(PHLWINDOW window)
 {
     m_ShadedWindows.erase(window);
     m_ManuallyShadedWindows.erase(window);
 }
 
-void WindowInverter::Unload()
+void WindowShader::Unload()
 {
     OnRenderWindowPost();
 
@@ -55,7 +55,7 @@ void WindowInverter::Unload()
     m_CompiledShaders.clear();
 }
 
-void WindowInverter::InvertIfMatches(PHLWINDOW window)
+void WindowShader::ShadeIfMatches(PHLWINDOW window)
 {
     // for some reason, some events (currently `activeWindow`) sometimes pass a null pointer
     if (!window) return;
@@ -93,7 +93,7 @@ void WindowInverter::InvertIfMatches(PHLWINDOW window)
 }
 
 
-void WindowInverter::ToggleInvert(PHLWINDOW window, const std::string& shader)
+void WindowShader::ToggleShade(PHLWINDOW window, const std::string& shader)
 {
     if (!window)
         return;
@@ -110,7 +110,7 @@ void WindowInverter::ToggleInvert(PHLWINDOW window, const std::string& shader)
     g_pHyprRenderer->damageWindow(window);
 }
 
-void WindowInverter::AddShader(std::string id, std::variant<std::string, std::string> nameOrPath, std::string args)
+void WindowShader::AddShader(std::string id, std::variant<std::string, std::string> nameOrPath, std::string args)
 {
     if (m_Shaders.contains(id)) return;
 
@@ -125,10 +125,10 @@ void WindowInverter::AddShader(std::string id, std::variant<std::string, std::st
 }
 
 
-void WindowInverter::ReshadeWindows()
+void WindowShader::ReshadeWindows()
 {
     m_ShadedWindows = {};
 
     for (const auto& window : g_pCompositor->m_windows)
-        InvertIfMatches(window);
+        ShadeIfMatches(window);
 }

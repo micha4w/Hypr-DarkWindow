@@ -30,7 +30,7 @@ static const std::map<std::string, std::string> WINDOW_SHADER_SOURCES = {
     )glsl" },
 };
 
-static std::string invert(std::string source, const std::string& windowShader) {
+static std::string editShader(std::string source, const std::string& windowShader) {
     size_t out = source.find("layout(location = 0) out vec4 ");
     std::string outVar;
     if (out != std::string::npos) {
@@ -41,7 +41,7 @@ static std::string invert(std::string source, const std::string& windowShader) {
     } else {
         // es 200
         if (!source.contains("gl_FragColor")) {
-            Debug::log(ERR, "Failed to invert GLSL Code, no gl_FragColor:\n{}", source);
+            Debug::log(ERR, "Failed to edit GLSL Code, no gl_FragColor:\n{}", source);
             throw std::runtime_error("Frag source does not contain a usage of 'gl_FragColor'");
         }
 
@@ -49,16 +49,16 @@ static std::string invert(std::string source, const std::string& windowShader) {
     }
 
     if (!source.contains("void main(")) {
-        Debug::log(ERR, "Failed to invert GLSL Code, no main function: {}", source);
+        Debug::log(ERR, "Failed to edit GLSL Code, no main function: {}", source);
         throw std::runtime_error("Frag source does not contain an occurence of 'void main('");
     }
 
-    Hyprutils::String::replaceInString(source, "void main(", "void main_uninverted(");
+    Hyprutils::String::replaceInString(source, "void main(", "void main_unshaded(");
 
     source += windowShader + R"glsl(
 
 void main() {
-    main_uninverted();
+    main_unshaded();
 
     windowShader()glsl" + outVar + ");\n}";
 
@@ -222,10 +222,10 @@ ShaderHolder::ShaderHolder(std::variant<std::string, std::string> nameOrPath)
     const auto TEXVERTSRC             = g_pHyprOpenGL->m_shaders->TEXVERTSRC;
     const auto TEXVERTSRC300          = g_pHyprOpenGL->m_shaders->TEXVERTSRC300;
 
-    const auto TEXFRAGSRCCM           = invert(processShader("CM.frag", includes), windowShader);
-    const auto TEXFRAGSRCRGBA         = invert(processShader("rgba.frag", includes), windowShader);
-    const auto TEXFRAGSRCRGBX         = invert(processShader("rgbx.frag", includes), windowShader);
-    const auto TEXFRAGSRCEXT          = invert(processShader("ext.frag", includes), windowShader);
+    const auto TEXFRAGSRCCM           = editShader(processShader("CM.frag", includes), windowShader);
+    const auto TEXFRAGSRCRGBA         = editShader(processShader("rgba.frag", includes), windowShader);
+    const auto TEXFRAGSRCRGBX         = editShader(processShader("rgbx.frag", includes), windowShader);
+    const auto TEXFRAGSRCEXT          = editShader(processShader("ext.frag", includes), windowShader);
 
     CM.program = createProgram(TEXVERTSRC300, TEXFRAGSRCCM, true, true);
     if (CM.program) {

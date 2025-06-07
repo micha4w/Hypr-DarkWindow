@@ -7,13 +7,13 @@
 #include <hyprland/src/Compositor.hpp>
 
 
-class WindowInverter
+class WindowShader
 {
 public:
     void Unload();
 
-    void InvertIfMatches(PHLWINDOW window);
-    void ToggleInvert(PHLWINDOW window, const std::string& shader);
+    void ShadeIfMatches(PHLWINDOW window);
+    void ToggleShade(PHLWINDOW window, const std::string& shader);
     void ReshadeWindows();
     void AddShader(std::string name, std::variant<std::string, std::string> idOrPath, std::string args);
 
