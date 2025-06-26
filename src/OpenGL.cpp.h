@@ -139,24 +139,24 @@ static std::string processShader(const std::string& filename, const std::map<std
 
 // shader has #include "CM.glsl"
 static void getCMShaderUniforms(SShader& shader) {
-    shader.skipCM          = glGetUniformLocation(shader.program, "skipCM");
-    shader.sourceTF        = glGetUniformLocation(shader.program, "sourceTF");
-    shader.targetTF        = glGetUniformLocation(shader.program, "targetTF");
-    shader.srcTFRange      = glGetUniformLocation(shader.program, "srcTFRange");
-    shader.dstTFRange      = glGetUniformLocation(shader.program, "dstTFRange");
-    shader.targetPrimaries = glGetUniformLocation(shader.program, "targetPrimaries");
-    shader.maxLuminance    = glGetUniformLocation(shader.program, "maxLuminance");
-    shader.dstMaxLuminance = glGetUniformLocation(shader.program, "dstMaxLuminance");
-    shader.dstRefLuminance = glGetUniformLocation(shader.program, "dstRefLuminance");
-    shader.sdrSaturation   = glGetUniformLocation(shader.program, "sdrSaturation");
-    shader.sdrBrightness   = glGetUniformLocation(shader.program, "sdrBrightnessMultiplier");
-    shader.convertMatrix   = glGetUniformLocation(shader.program, "convertMatrix");
+    shader.uniformLocations[SHADER_SKIP_CM]           = glGetUniformLocation(shader.program, "skipCM");
+    shader.uniformLocations[SHADER_SOURCE_TF]         = glGetUniformLocation(shader.program, "sourceTF");
+    shader.uniformLocations[SHADER_TARGET_TF]         = glGetUniformLocation(shader.program, "targetTF");
+    shader.uniformLocations[SHADER_SRC_TF_RANGE]      = glGetUniformLocation(shader.program, "srcTFRange");
+    shader.uniformLocations[SHADER_DST_TF_RANGE]      = glGetUniformLocation(shader.program, "dstTFRange");
+    shader.uniformLocations[SHADER_TARGET_PRIMARIES]  = glGetUniformLocation(shader.program, "targetPrimaries");
+    shader.uniformLocations[SHADER_MAX_LUMINANCE]     = glGetUniformLocation(shader.program, "maxLuminance");
+    shader.uniformLocations[SHADER_DST_MAX_LUMINANCE] = glGetUniformLocation(shader.program, "dstMaxLuminance");
+    shader.uniformLocations[SHADER_DST_REF_LUMINANCE] = glGetUniformLocation(shader.program, "dstRefLuminance");
+    shader.uniformLocations[SHADER_SDR_SATURATION]    = glGetUniformLocation(shader.program, "sdrSaturation");
+    shader.uniformLocations[SHADER_SDR_BRIGHTNESS]    = glGetUniformLocation(shader.program, "sdrBrightnessMultiplier");
+    shader.uniformLocations[SHADER_CONVERT_MATRIX]    = glGetUniformLocation(shader.program, "convertMatrix");
 }
 
 // shader has #include "rounding.glsl"
 static void getRoundingShaderUniforms(SShader& shader) {
-    shader.topLeft       = glGetUniformLocation(shader.program, "topLeft");
-    shader.fullSize      = glGetUniformLocation(shader.program, "fullSize");
-    shader.radius        = glGetUniformLocation(shader.program, "radius");
-    shader.roundingPower = glGetUniformLocation(shader.program, "roundingPower");
+    shader.uniformLocations[SHADER_TOP_LEFT]       = glGetUniformLocation(shader.program, "topLeft");
+    shader.uniformLocations[SHADER_FULL_SIZE]      = glGetUniformLocation(shader.program, "fullSize");
+    shader.uniformLocations[SHADER_RADIUS]         = glGetUniformLocation(shader.program, "radius");
+    shader.uniformLocations[SHADER_ROUNDING_POWER] = glGetUniformLocation(shader.program, "roundingPower");
 }
