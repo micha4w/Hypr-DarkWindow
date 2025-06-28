@@ -1,4 +1,4 @@
-#include "WindowInverter.h"
+#include "WindowShader.h"
 
 #include <hyprutils/string/String.hpp>
 
