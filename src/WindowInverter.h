@@ -7,25 +7,28 @@
 #include <hyprland/src/Compositor.hpp>
 
 
-class WindowInverter
+class WindowShader
 {
 public:
-    void Init();
     void Unload();
 
-    void InvertIfMatches(PHLWINDOW window);
-    void ToggleInvert(PHLWINDOW window);
-    void Reload();
+    void ShadeIfMatches(PHLWINDOW window);
+    void ToggleShade(PHLWINDOW window, const std::string& shader);
+    void ForgetWindow(PHLWINDOW window);
+    void ReshadeWindows();
+
+    void AddPredefinedShader(const std::string& name);
+    ShaderConfig* AddShader(ShaderDefinition def);
+    ShaderConfig* EnsureShader(const std::string& shader);
 
     void OnRenderWindowPre(PHLWINDOW window);
     void OnRenderWindowPost();
-    void OnWindowClose(PHLWINDOW window);
 
 private:
-    std::vector<CWindowRule> m_InvertWindowRules;
-    std::vector<PHLWINDOW> m_InvertedWindows;
-    std::vector<PHLWINDOW> m_ManuallyInvertedWindows;
+    std::map<std::string, UP<ShaderConfig>> m_Shaders;
 
-    ShaderHolder m_Shaders;
-    bool m_ShadersSwapped = false;
+    std::map<PHLWINDOW, ShaderConfig*> m_RuleShadedWindows;
+    std::map<PHLWINDOW, ShaderConfig*> m_DispatchShadedWindows;
+
+    std::optional<ShaderConfig*> m_ShadersSwapped;
 };
