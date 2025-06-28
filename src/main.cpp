@@ -12,7 +12,7 @@
 #include <hyprutils/string/String.hpp>
 
 
-#include "WindowInverter.h"
+#include "WindowShader.h"
 
 #include <mutex>
 #include <vector>
