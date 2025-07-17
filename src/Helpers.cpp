@@ -47,6 +47,19 @@ void main() {
     return source;
 }
 
+ShaderDefinition::ShaderDefinition(std::string id, std::string from, std::string path, const std::string& args)
+    : ID(id), From(from), Path(path)
+{
+    try
+    {
+        Args = ParseArgs(args);
+    }
+    catch (const std::exception& ex)
+    {
+        throw efmt("Failed to parse arguments of shader '{}': {}", args, ex.what());
+    }
+}
+
 Uniforms ShaderDefinition::ParseArgs(const std::string& args)
 {
     Uniforms out;

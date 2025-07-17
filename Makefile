@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -fPIC --no-gnu-unique -Isrc/ -g -std=c++2b -DWLR_USE_UNSTABLE
+CXXFLAGS = -fPIC --no-gnu-unique -Isrc/ -g -std=c++2b -DWLR_USE_UNSTABLE -O0
 
 
 SRC_DIR = src
@@ -33,7 +33,7 @@ include $(wildcard $(DEPS))
 clean:
 	rm -rf $(OUT_DIR)
 
-load: unload
+load: unload $(TARGET)
 	hyprctl plugin load $(shell pwd)/$(TARGET)
 
 unload:

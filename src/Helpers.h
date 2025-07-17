@@ -11,7 +11,7 @@
 template <typename... Args>
 inline auto efmt(std::format_string<Args...> fmt, Args&&... args)
 {
-    return std::runtime_error(std::format(fmt, args...));
+    return std::runtime_error(std::format(fmt, std::forward<Args>(args)...));
 }
 
 inline void notifyError(HANDLE handle, const std::string& err)
@@ -50,9 +50,7 @@ namespace std
 using Uniforms = std::map<std::string, std::vector<float>>;
 struct ShaderDefinition
 {
-    ShaderDefinition(std::string id, std::string from, std::string path, const std::string& args)
-        : ID(id), From(from), Path(path), Args(ParseArgs(args))
-    { }
+    ShaderDefinition(std::string id, std::string from, std::string path, const std::string& args);
 
     std::string ID;
     std::string From;

@@ -118,7 +118,14 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
             }
 
             Debug::log(INFO, "[Hypr-DarkWindow] Compiled all shaders");
-            g_WindowShader.ReshadeWindows();
+            try
+            {
+                g_WindowShader.ReshadeWindows();
+            }
+            catch (const std::exception& ex)
+            {
+                notifyError(PHANDLE, std::string("Failed to apply window rule shader: ") + ex.what());
+            }
         }
     ));
     g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
@@ -132,7 +139,14 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         PHANDLE, "windowUpdateRules",
         [&](void* self, SCallbackInfo&, std::any data) {
             std::lock_guard<std::mutex> lock(g_ShaderMutex);
-            g_WindowShader.ShadeIfMatches(std::any_cast<PHLWINDOW>(data));
+            try
+            {
+                g_WindowShader.ShadeIfMatches(std::any_cast<PHLWINDOW>(data));
+            }
+            catch (const std::exception& ex)
+            {
+                notifyError(PHANDLE, std::string("Failed to apply window rule shader: ") + ex.what());
+            }
         }
     ));
 
