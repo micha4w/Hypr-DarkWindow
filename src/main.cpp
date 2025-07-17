@@ -58,7 +58,7 @@ const char* LOAD_SHADERS_KEY = "plugin:darkwindow:load_shaders";
 
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 {
-    Debug::log(ERR, "[Hypr-DarkWindow] Loading Plugin");
+    Debug::log(INFO, "[Hypr-DarkWindow] Loading Plugin");
     PHANDLE = handle;
 
     {

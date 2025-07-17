@@ -154,6 +154,9 @@ void ShaderHolder::PrimeUniforms(const Uniforms& args)
 
 void ShaderHolder::ApplyArgs(const Uniforms& args) noexcept
 {
+    GLint prog;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
+
     SShader* shaders[4] = { &CM, &RGBA, &RGBX, &EXT };
     for (int i = 0; i < 4; i++)
     {
@@ -180,6 +183,8 @@ void ShaderHolder::ApplyArgs(const Uniforms& args) noexcept
             }
         }
     }
+
+    glUseProgram(prog);
 }
 
 
