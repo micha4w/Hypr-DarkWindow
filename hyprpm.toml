@@ -36,7 +36,7 @@ commit_pins = [
 ]
 
 [Hypr-DarkWindow]
-description = "Invert the colors of specific Windows"
+description = "Apply custom shaders to any Window!"
 authors = ["micha4w"]
 output = "out/hypr-darkwindow.so"
 build = [

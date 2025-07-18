@@ -2,14 +2,16 @@
 
 #include <exception>
 #include <unordered_set>
+#include <ranges>
 
 #include <hyprland/src/Compositor.hpp>
+#include <hyprutils/utils/ScopeGuard.hpp>
 
 #include "OpenGL.cpp.h"
 #include "src/render/Shader.hpp"
 
 
-static std::string invert(std::string source) {
+static std::string editShader(std::string source, const std::string& windowShader) {
     size_t out = source.find("layout(location = 0) out vec4 ");
     std::string outVar;
     if (out != std::string::npos) {
@@ -20,49 +22,187 @@ static std::string invert(std::string source) {
     } else {
         // es 200
         if (!source.contains("gl_FragColor")) {
-            Debug::log(ERR, "Failed to invert GLSL Code, no gl_FragColor:\n{}", source);
-            throw std::runtime_error("Frag source does not contain a usage of 'gl_FragColor'");
+            Debug::log(ERR, "Failed to edit GLSL Code, no gl_FragColor:\n{}", source);
+            throw efmt("Frag source does not contain a usage of 'gl_FragColor'");
         }
 
         outVar = "gl_FragColor";
     }
 
     if (!source.contains("void main(")) {
-        Debug::log(ERR, "Failed to invert GLSL Code, no main function: {}", source);
-        throw std::runtime_error("Frag source does not contain an occurence of 'void main('");
+        Debug::log(ERR, "Failed to edit GLSL Code, no main function: {}", source);
+        throw efmt("Frag source does not contain an occurence of 'void main('");
     }
 
-    Hyprutils::String::replaceInString(source, "void main(", "void main_uninverted(");
+    Hyprutils::String::replaceInString(source, "void main(", "void main_unshaded(");
 
-    source += std::format(R"glsl(
-void main() {{
-    main_uninverted();
+    source += windowShader + R"glsl(
 
-    // Invert Colors
-    {0}.rgb = vec3(1.) - vec3(.88, .9, .92) * {0}.rgb;
+void main() {
+    main_unshaded();
 
-    // Invert Hue
-    {0}.rgb = dot(vec3(0.26312, 0.5283, 0.10488), {0}.rgb) * 2.0 - {0}.rgb;
-}}
-    )glsl", outVar);
+    windowShader()glsl" + outVar + ");\n}";
+
 
     return source;
 }
 
-void ShaderHolder::Init()
+ShaderDefinition::ShaderDefinition(std::string id, std::string from, std::string path, const std::string& args)
+    : ID(id), From(from), Path(path)
+{
+    try
+    {
+        Args = ParseArgs(args);
+    }
+    catch (const std::exception& ex)
+    {
+        throw efmt("Failed to parse arguments of shader '{}': {}", args, ex.what());
+    }
+}
+
+Uniforms ShaderDefinition::ParseArgs(const std::string& args)
+{
+    Uniforms out;
+    std::stringstream ss(args);
+
+    ss >> std::ws;
+    while (!ss.eof())
+    {
+        std::string name;
+        std::getline(ss, name, '=');
+        name = Hyprutils::String::trim(name);
+        for (auto [i, c] : std::views::enumerate(name))
+        {
+            bool first = c>='a' && c<='z' || c>='A' && c<='Z' || c=='_';
+            bool other = c>='0' && c<='9';
+
+            if (!(first || other && i != 0))
+                throw efmt("invalid shader uniform name '{}'", name);
+        }
+
+        ss >> std::ws;
+        
+        std::vector<float> values;
+        if (ss.peek() == '[')
+        {
+            ss.get();
+            while (1)
+            {
+                std::string rem(ss.str().substr(ss.tellg()));
+
+                float next;
+                ss >> next;
+
+                if (ss.fail()) break;
+                values.push_back(next);
+
+                ss >> std::ws;
+                if (ss.peek() == ',')
+                {
+                    ss.get();
+                    ss >> std::ws;
+                }
+                if (ss.peek() == ']') {
+                    ss.get();
+                    break;
+                }
+
+                if (ss.eof()) throw efmt("expected ']' not found");
+            }
+
+            if (values.size() < 1 || values.size() > 4)
+                throw efmt("only support from 1 to 4 values");
+        }
+        else
+        {
+            float next;
+            ss >> next;
+            values.push_back(next);
+        }
+        if (ss.fail()) throw efmt("expected a float");
+        ss >> std::ws;
+
+        out[name] = values;
+    }
+
+    return out;
+}
+
+void ShaderHolder::PrimeUniforms(const Uniforms& args)
 {
     g_pHyprRenderer->makeEGLCurrent();
+    Hyprutils::Utils::CScopeGuard _egl([&]{ g_pHyprRenderer->unsetEGL(); });
+
+    for (auto& [name, _] : args)
+    {
+        if (UniformLocations.contains(name)) continue;
+
+        SShader* shaders[4] = { &CM, &RGBA, &RGBX, &EXT };
+        std::array<GLint, 4> locs;
+        for (int i = 0; i < 4; i++)
+        {
+            if (!shaders[i]->program) continue;
+
+            GLint loc = glGetUniformLocation(shaders[i]->program, name.c_str());
+            if (loc == -1) throw efmt("Shader failed to find the uniform: {}", name);
+            locs[i] = loc;
+        }
+
+        UniformLocations[name] = locs;
+    }
+}
+
+void ShaderHolder::ApplyArgs(const Uniforms& args) noexcept
+{
+    GLint prog;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
+
+    SShader* shaders[4] = { &CM, &RGBA, &RGBX, &EXT };
+    for (int i = 0; i < 4; i++)
+    {
+        if (!shaders[i]->program) continue;
+
+        glUseProgram(shaders[i]->program);
+        for (auto& [name, values] : args)
+        {
+            GLint loc = UniformLocations[name][i];
+            switch (values.size())
+            {
+                case 1:
+                    glUniform1f(loc, values[0]);
+                    break;
+                case 2:
+                    glUniform2f(loc, values[0], values[1]);
+                    break;
+                case 3:
+                    glUniform3f(loc, values[0], values[1], values[2]);
+                    break;
+                case 4:
+                    glUniform4f(loc, values[0], values[1], values[2], values[3]);
+                    break;
+            }
+        }
+    }
+
+    glUseProgram(prog);
+}
+
+
+ShaderHolder::ShaderHolder(const std::string& source)
+{
+    g_pHyprRenderer->makeEGLCurrent();
+    Hyprutils::Utils::CScopeGuard _egl([&]{ g_pHyprRenderer->unsetEGL(); });
 
     std::map<std::string, std::string> includes;
     loadShaderInclude("rounding.glsl", includes);
     loadShaderInclude("CM.glsl", includes);
 
-    const auto TEXVERTSRC             = g_pHyprOpenGL->m_shaders->TEXVERTSRC;
+    const auto& TEXVERTSRC             = g_pHyprOpenGL->m_shaders->TEXVERTSRC;
 
-    const auto TEXFRAGSRCCM           = invert(processShader("CM.frag", includes));
-    const auto TEXFRAGSRCRGBA         = invert(processShader("rgba.frag", includes));
-    const auto TEXFRAGSRCRGBX         = invert(processShader("rgbx.frag", includes));
-    const auto TEXFRAGSRCEXT          = invert(processShader("ext.frag", includes));
+    const auto TEXFRAGSRCCM           = editShader(processShader("CM.frag", includes), source);
+    const auto TEXFRAGSRCRGBA         = editShader(processShader("rgba.frag", includes), source);
+    const auto TEXFRAGSRCRGBX         = editShader(processShader("rgbx.frag", includes), source);
+    const auto TEXFRAGSRCEXT          = editShader(processShader("ext.frag", includes), source);
 
     CM.program = createProgram(TEXVERTSRC, TEXFRAGSRCCM, true, true);
     if (CM.program) {
@@ -85,11 +225,12 @@ void ShaderHolder::Init()
         CM.uniformLocations[SHADER_USE_ALPHA_MATTE]     = glGetUniformLocation(CM.program, "useAlphaMatte");
         CM.createVao();
     } else {
-        if (g_pHyprOpenGL->m_shaders->m_shCM.program) throw std::runtime_error("Failed to create Shader: CM.frag, check hyprland logs");
+        if (g_pHyprOpenGL->m_shaders->m_shCM.program)
+            throw efmt("Failed to create Shader: CM.frag, check hyprland logs");
     }
 
     RGBA.program = createProgram(TEXVERTSRC, TEXFRAGSRCRGBA, true, true);
-    if (!RGBA.program) throw std::runtime_error("Failed to create Shader: rgba.frag, check hyprland logs");
+    if (!RGBA.program) throw efmt("Failed to create Shader: rgba.frag, check hyprland logs");
     getRoundingShaderUniforms(RGBA);
     RGBA.uniformLocations[SHADER_PROJ]                = glGetUniformLocation(RGBA.program, "proj");
     RGBA.uniformLocations[SHADER_TEX]                 = glGetUniformLocation(RGBA.program, "tex");
@@ -107,7 +248,7 @@ void ShaderHolder::Init()
     RGBA.createVao();
 
     RGBX.program = createProgram(TEXVERTSRC, TEXFRAGSRCRGBX, true, true);
-    if (!RGBX.program) throw std::runtime_error("Failed to create Shader: rgbx.frag, check hyprland logs");
+    if (!RGBX.program) throw efmt("Failed to create Shader: rgbx.frag, check hyprland logs");
     getRoundingShaderUniforms(RGBX);
     RGBX.uniformLocations[SHADER_TEX]                 = glGetUniformLocation(RGBX.program, "tex");
     RGBX.uniformLocations[SHADER_PROJ]                = glGetUniformLocation(RGBX.program, "proj");
@@ -122,7 +263,7 @@ void ShaderHolder::Init()
     RGBX.createVao();
 
     EXT.program = createProgram(TEXVERTSRC, TEXFRAGSRCEXT, true, true);
-    if (!EXT.program) throw std::runtime_error("Failed to create Shader: ext.frag, check hyprland logs");
+    if (!EXT.program) throw efmt("Failed to create Shader: ext.frag, check hyprland logs");
     getRoundingShaderUniforms(EXT);
     EXT.uniformLocations[SHADER_TEX]                 = glGetUniformLocation(EXT.program, "tex");
     EXT.uniformLocations[SHADER_PROJ]                = glGetUniformLocation(EXT.program, "proj");
@@ -135,11 +276,9 @@ void ShaderHolder::Init()
     EXT.uniformLocations[SHADER_APPLY_TINT]          = glGetUniformLocation(EXT.program, "applyTint");
     EXT.uniformLocations[SHADER_TINT]                = glGetUniformLocation(EXT.program, "tint");
     EXT.createVao();
-
-    g_pHyprRenderer->unsetEGL();
 }
 
-void ShaderHolder::Destroy()
+ShaderHolder::~ShaderHolder()
 {
     g_pHyprRenderer->makeEGLCurrent();
 
