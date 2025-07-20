@@ -47,8 +47,8 @@ void main() {
     return source;
 }
 
-ShaderDefinition::ShaderDefinition(std::string id, std::string from, std::string path, const std::string& args)
-    : ID(id), From(from), Path(path)
+ShaderDefinition::ShaderDefinition(std::string id, std::string from, std::string path, const std::string& args, bool transparency)
+    : ID(id), From(from), Path(path), Transparency(transparency)
 {
     try
     {

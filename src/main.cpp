@@ -41,7 +41,18 @@ CFunctionHook* g_surfacePassDraw;
 void hkSurfacePassDraw(CSurfacePassElement* thisptr, const CRegion& damage) {
     {
         std::lock_guard<std::mutex> lock(g_ShaderMutex);
-        g_WindowShader.OnRenderWindowPre(thisptr->m_data.pWindow);
+        auto shader = g_WindowShader.OnRenderWindowPre(thisptr->m_data.pWindow);
+        if (shader && (*shader)->Transparent == IntroducesTransparency::Yes) {
+            // TODO: undo these changes?
+            thisptr->m_data.blur = true;
+            thisptr->m_data.texture->m_opaque = false;
+            if (!thisptr->m_data.surface->m_current.opaque.empty())
+            {
+                thisptr->m_data.surface->m_current.opaque.clear();
+                // TODO: For some reason we need to damage the window twice?
+                g_pHyprRenderer->damageWindow(thisptr->m_data.pWindow);
+            }
+        }
     }
 
     ((decltype(&hkSurfacePassDraw))g_surfacePassDraw->m_original)(thisptr, damage);
@@ -67,6 +78,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         config->addSpecialConfigValue(SHADER_CATEGORY, "from", "");
         config->addSpecialConfigValue(SHADER_CATEGORY, "path", "");
         config->addSpecialConfigValue(SHADER_CATEGORY, "args", "");
+        config->addSpecialConfigValue(SHADER_CATEGORY, "introduces_transparency", Hyprlang::INT{0});
     }
 
     HyprlandAPI::addConfigValue(PHANDLE, LOAD_SHADERS_KEY, Hyprlang::STRING("all"));
@@ -106,10 +118,12 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
                     config->getSpecialConfigValue(SHADER_CATEGORY, "path", id.c_str()));
                 auto args = std::any_cast<Hyprlang::STRING>(
                     config->getSpecialConfigValue(SHADER_CATEGORY, "args", id.c_str()));
+                auto transparent = std::any_cast<Hyprlang::INT>(
+                    config->getSpecialConfigValue(SHADER_CATEGORY, "introduces_transparency", id.c_str()));
 
                 try
                 {
-                    g_WindowShader.AddShader({ id, name, path, args });
+                    g_WindowShader.AddShader({ id, name, path, args, transparent > 0 });
                 }
                 catch (const std::exception& ex)
                 {
@@ -212,6 +226,7 @@ APICALL EXPORT void PLUGIN_EXIT()
     config->removeSpecialConfigValue(SHADER_CATEGORY, "from");
     config->removeSpecialConfigValue(SHADER_CATEGORY, "path");
     config->removeSpecialConfigValue(SHADER_CATEGORY, "args");
+    config->removeSpecialConfigValue(SHADER_CATEGORY, "introduces_transparency");
     config->removeSpecialCategory(SHADER_CATEGORY);
 }
 

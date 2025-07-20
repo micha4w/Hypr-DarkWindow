@@ -1,8 +1,9 @@
 #include "WindowShader.h"
 
 #include <hyprutils/string/String.hpp>
+#include <hyprland/src/managers/eventLoop/EventLoopManager.hpp>
 
-static const std::map<std::string, std::pair<std::string, Uniforms>> WINDOW_SHADER_SOURCES = {
+static const std::map<std::string, std::tuple<std::string, Uniforms, IntroducesTransparency>> WINDOW_SHADER_SOURCES = {
     { "invert", { R"glsl(
         void windowShader(inout vec4 color) {
             // Invert Colors
@@ -11,7 +12,7 @@ static const std::map<std::string, std::pair<std::string, Uniforms>> WINDOW_SHAD
             // Invert Hue
             color.rgb = dot(vec3(0.26312, 0.5283, 0.10488), color.rgb) * 2.0 - color.rgb;
         }
-    )glsl", {} } },
+    )glsl", {}, {} } },
     // Example for a shader with default uniform values
     { "tint", { R"glsl(
         uniform vec3 tintColor;
@@ -23,7 +24,7 @@ static const std::map<std::string, std::pair<std::string, Uniforms>> WINDOW_SHAD
     )glsl", {
         { "tintColor", { 1, 0, 0 } },
         { "tintStrength", { 0.1 } },
-    }} },
+    }, {} } },
     // Original shader by ikz87
     // Applies opacity changes to pixels similar to one color
     { "chromakey", { R"glsl(
@@ -47,11 +48,11 @@ static const std::map<std::string, std::pair<std::string, Uniforms>> WINDOW_SHAD
         { "similarity", { 0.1 } },
         { "amount", { 1.4 } },
         { "targetOpacity", { 0.83 } },
-    }} },
+    }, IntroducesTransparency::Yes } },
 };
 
 
-void WindowShader::OnRenderWindowPre(PHLWINDOW window)
+std::optional<ShaderConfig*>& WindowShader::OnRenderWindowPre(PHLWINDOW window)
 {
     m_ShadersSwapped.reset();
 
@@ -75,6 +76,8 @@ void WindowShader::OnRenderWindowPre(PHLWINDOW window)
         std::swap((*m_ShadersSwapped)->CompiledShaders->RGBX, g_pHyprOpenGL->m_shaders->m_shRGBX);
         std::swap((*m_ShadersSwapped)->CompiledShaders->CM, g_pHyprOpenGL->m_shaders->m_shCM);
     }
+
+    return m_ShadersSwapped;
 }
 
 void WindowShader::OnRenderWindowPost()
@@ -170,13 +173,15 @@ void WindowShader::AddPredefinedShader(const std::string& name)
 {
     static const auto add = [](WindowShader* self, const auto& source) {
         if (self->m_Shaders.contains(source.first)) return;
+        auto& [id, options] = source;
 
-        Debug::log(INFO, "Loading predefined shader with name: {}", source.first);
+        Debug::log(INFO, "Loading predefined shader with name: {}", id);
 
         UP<ShaderConfig> shader(new ShaderConfig{
-            .ID = source.first,
-            .CompiledShaders = SP(new ShaderHolder(source.second.first)),
-            .Args = source.second.second,
+            .ID = id,
+            .CompiledShaders = SP(new ShaderHolder(std::get<std::string>(options))),
+            .Args = std::get<Uniforms>(options),
+            .Transparent = std::get<IntroducesTransparency>(options),
         });
         shader->CompiledShaders->PrimeUniforms(shader->Args);
 
@@ -217,6 +222,7 @@ ShaderConfig* WindowShader::AddShader(ShaderDefinition def)
         auto& from = m_Shaders[def.From];
         shader->Args = from->Args;
         shader->CompiledShaders = from->CompiledShaders;
+        shader->Transparent = from->Transparent;
     }
 
     if (def.Path != "")
@@ -236,6 +242,8 @@ ShaderConfig* WindowShader::AddShader(ShaderDefinition def)
     {
         shader->Args[arg] = val;
     }
+
+    if (def.Transparency) shader->Transparent = IntroducesTransparency::Yes;
 
     auto ret = shader.get();
     m_Shaders[def.ID] = std::move(shader);
@@ -257,6 +265,6 @@ ShaderConfig* WindowShader::EnsureShader(const std::string& shader)
     {
         auto from = Hyprutils::String::trim(shader.substr(0, space));
         
-        return AddShader({ shader, from, "", shader.substr(space + 1) });
+        return AddShader({ shader, from, "", shader.substr(space + 1), false });
     }
 }

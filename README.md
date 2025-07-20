@@ -40,6 +40,7 @@ darkwindow:shader[tintRed] {
 darkwindow:shader[cool] {
     path = /path/to/shader.glsl
     args = wow=[1.0 0 0]
+    introduces_transparency = true # if you modify the alpha value make sure to set this value to true so hyprland knows it should enable blur
 }
 
 # Then to apply the shader to a window you can use window rules

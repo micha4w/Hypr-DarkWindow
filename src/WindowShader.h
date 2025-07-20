@@ -21,7 +21,7 @@ public:
     ShaderConfig* AddShader(ShaderDefinition def);
     ShaderConfig* EnsureShader(const std::string& shader);
 
-    void OnRenderWindowPre(PHLWINDOW window);
+    std::optional<ShaderConfig*>& OnRenderWindowPre(PHLWINDOW window);
     void OnRenderWindowPost();
 
 private:

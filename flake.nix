@@ -29,7 +29,7 @@
         rec {
           Hypr-DarkWindow = pkgs.gcc14Stdenv.mkDerivation {
             pname = "Hypr-DarkWindow";
-            version = "3.0.1";
+            version = "4.0.0";
             src = nix-filter.lib {
               root = ./.;
               include = [
@@ -48,7 +48,7 @@
 
             meta = with pkgs.lib; {
               homepage = "https://github.com/micha4w/Hypr-DarkWindow";
-              description = "Invert the colors of specific Windows";
+              description = "Apply custom shaders to any Window!";
               license = licenses.mit;
               platforms = platforms.linux;
             };

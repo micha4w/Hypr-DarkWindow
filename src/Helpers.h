@@ -50,12 +50,13 @@ namespace std
 using Uniforms = std::map<std::string, std::vector<float>>;
 struct ShaderDefinition
 {
-    ShaderDefinition(std::string id, std::string from, std::string path, const std::string& args);
+    ShaderDefinition(std::string id, std::string from, std::string path, const std::string& args, bool transparency);
 
     std::string ID;
     std::string From;
     std::string Path;
     Uniforms Args;
+    bool Transparency;
 
     Uniforms ParseArgs(const std::string& args);
 };
@@ -76,10 +77,12 @@ struct ShaderHolder
     void ApplyArgs(const Uniforms& args) noexcept;
 };
 
+enum class IntroducesTransparency { No = 0, Yes};
 
 struct ShaderConfig {
     std::string ID;
 
     SP<ShaderHolder> CompiledShaders;
     Uniforms Args;
+    IntroducesTransparency Transparent;
 };
