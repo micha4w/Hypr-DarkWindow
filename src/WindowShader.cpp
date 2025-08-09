@@ -36,11 +36,10 @@ static const std::map<std::string, std::tuple<std::string, Uniforms, IntroducesT
         void windowShader(inout vec4 color) {
             if (color.r >= bkg.r - similarity && color.r <= bkg.r + similarity &&
                     color.g >= bkg.g - similarity && color.g <= bkg.g + similarity &&
-                    color.b >= bkg.b - similarity && color.b <= bkg.b + similarity &&
-                    color.a >= 0.99) {
+                    color.b >= bkg.b - similarity && color.b <= bkg.b + similarity) {
                 vec3 error = vec3(abs(bkg.r - color.r), abs(bkg.g - color.g), abs(bkg.b - color.b));
                 float avg_error = (error.r + error.g + error.b) / 3.0;
-                color.a = targetOpacity + (1.0 - targetOpacity) * avg_error * amount / similarity;
+                color.a *= targetOpacity + (1.0 - targetOpacity) * avg_error * amount / similarity;
             }
         }
     )glsl", {
