@@ -87,6 +87,11 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
     g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
         PHANDLE, "configReloaded",
         [&](void* self, SCallbackInfo&, std::any data) {
+            if (!g_pHyprOpenGL->m_shadersInitialized) {
+                Debug::log(WARN, "[Hypr-DarkWindow] Initializing shaders since they havent been initialized by Hyprland yet");
+                g_pHyprOpenGL->initShaders();
+            }
+
             std::lock_guard<std::mutex> lock(g_ShaderMutex);
 
             g_WindowShader = WindowShader();
