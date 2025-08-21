@@ -45,8 +45,8 @@ void hkSurfacePassDraw(CSurfacePassElement* thisptr, const CRegion& damage) {
         if (shader && (*shader)->Transparent == IntroducesTransparency::Yes) {
             // TODO: undo these changes?
             thisptr->m_data.blur = true;
-            thisptr->m_data.texture->m_opaque = false;
-            if (!thisptr->m_data.surface->m_current.opaque.empty())
+            if (thisptr->m_data.texture) thisptr->m_data.texture->m_opaque = false;
+            if (thisptr->m_data.surface && !thisptr->m_data.surface->m_current.opaque.empty())
             {
                 thisptr->m_data.surface->m_current.opaque.clear();
                 // TODO: For some reason we need to damage the window twice?
