@@ -6,20 +6,33 @@
 static const std::map<std::string, std::tuple<std::string, Uniforms, IntroducesTransparency>> WINDOW_SHADER_SOURCES = {
     { "invert", { R"glsl(
         void windowShader(inout vec4 color) {
+            // remove premultiplied alpha
+            color.rgb /= color.a;
+
             // Invert Colors
             color.rgb = vec3(1.) - vec3(.88, .9, .92) * color.rgb;
 
             // Invert Hue
             color.rgb = dot(vec3(0.26312, 0.5283, 0.10488), color.rgb) * 2.0 - color.rgb;
+
+            // remultiply alpha
+            color.rgb *= color.a;
         }
     )glsl", {}, {} } },
     // Example for a shader with default uniform values
     { "tint", { R"glsl(
         uniform vec3 tintColor;
         uniform float tintStrength;
-        
+
         void windowShader(inout vec4 color) {
+            // remove premultiplied alpha
+            color.rgb /= color.a;
+
+            // tint color
             color.rgb = color.rgb * (1.0 - tintStrength) + tintColor * tintStrength;
+
+            // remultiply alpha
+            color.rgb *= color.a;
         }
     )glsl", {
         { "tintColor", { 1, 0, 0 } },
@@ -39,7 +52,8 @@ static const std::map<std::string, std::tuple<std::string, Uniforms, IntroducesT
                     color.b >= bkg.b - similarity && color.b <= bkg.b + similarity) {
                 vec3 error = vec3(abs(bkg.r - color.r), abs(bkg.g - color.g), abs(bkg.b - color.b));
                 float avg_error = (error.r + error.g + error.b) / 3.0;
-                color.a *= targetOpacity + (1.0 - targetOpacity) * avg_error * amount / similarity;
+
+                color *= targetOpacity + (1.0 - targetOpacity) * avg_error * amount / similarity;
             }
         }
     )glsl", {
@@ -140,7 +154,7 @@ void WindowShader::ToggleShade(PHLWINDOW window, const std::string& shader)
 {
     if (!window)
         return;
-    
+
     auto windowIt = m_DispatchShadedWindows.find(window);
     std::optional<std::string> currentShader;
     if (windowIt != m_DispatchShadedWindows.end()) currentShader = windowIt->second->ID;
@@ -194,7 +208,7 @@ void WindowShader::AddPredefinedShader(const std::string& name)
             add(this, source);
         }
     }
-    else 
+    else
     {
         auto source = WINDOW_SHADER_SOURCES.find(name);
         if (source == WINDOW_SHADER_SOURCES.end())
@@ -257,13 +271,13 @@ ShaderConfig* WindowShader::EnsureShader(const std::string& shader)
         auto found = m_Shaders.find(shader);
         if (found == m_Shaders.end())
             throw efmt("Unable to find shader {}", shader);
-        
+
         return found->second.get();
     }
     else
     {
         auto from = Hyprutils::String::trim(shader.substr(0, space));
-        
+
         return AddShader({ shader, from, "", shader.substr(space + 1), false });
     }
 }
