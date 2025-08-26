@@ -49,7 +49,7 @@ windowrulev2 = plugin:shadewindow invert,class:(pb170.exe)
 windowrulev2 = plugin:shadewindow tint tintColor=[0 1 0],fullscreen:1
 
 # Or use a dispatcher
-bind = $mainMod, T, shadeactivewindow, tint tintColor[0 0.5 1] tintStrength=0.3
+bind = $mainMod, T, shadeactivewindow, tint tintColor=[0 0.5 1] tintStrength=0.3
 # There is also a `shadewindow WINDOW_REGEX SHADER_NAME` available (see window in https://wiki.hypr.land/Configuring/Dispatchers/#parameter-explanation)
 ```
 
