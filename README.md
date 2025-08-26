@@ -19,7 +19,7 @@ plugin:darkwindow:load_shaders = invert,tint,... # defaults to 'all'
 | **tint**   | <ul><li>_tintStrength_ = `float` (0-1) </li><li>_tintColor_ = `vec3`</li></ul> Tints the Window <br> |
 | **chromakey**   | <ul> <li>_bkg_ = `vec3` <br> The background color of the Window </li> <li>_similarity_ = `float` <br> How many similar colors should be affected</li> <li>_amount_ = `float` <br> How much similar colors should be changed</li> <li>_targetOpacity_ = `float` <br> Target opacity for similar colors</li> </ul> Applies opacity changes to pixels similar to one color <br> |
 
-Feel free to make a pull request if you want to add more shaders ([look here](./src/WindowShader.cpp:7)).
+Feel free to make a pull request if you want to add more shaders ([look here](./src/WindowShader.cpp#L7)).
 
 ## Configuration
 
