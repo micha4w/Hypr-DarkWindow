@@ -2,6 +2,7 @@
 
 #include <hyprutils/string/String.hpp>
 #include <hyprland/src/managers/eventLoop/EventLoopManager.hpp>
+#include <hyprland/src/helpers/MiscFunctions.hpp>
 
 static const std::map<std::string, std::tuple<std::string, Uniforms, IntroducesTransparency>> WINDOW_SHADER_SOURCES = {
     { "invert", { R"glsl(
@@ -117,21 +118,13 @@ void WindowShader::ShadeIfMatches(PHLWINDOW window)
     // for some reason, some events (currently `activeWindow`) sometimes pass a null pointer
     if (!window) return;
 
-    std::vector<SP<CWindowRule>> rules = g_pConfigManager->getMatchingRules(window);
     std::optional<std::string> shader;
-    for (const SP<CWindowRule>& rule : rules)
-    {
-        if (rule->m_rule == "plugin:invertwindow")
-        {
-            shader = "invert";
-            break;
-        }
+    auto props = &window->m_ruleApplicator->m_otherProps.props;
 
-        if (rule->m_rule.starts_with("plugin:shadewindow "))
-        {
-            shader = rule->m_rule.substr(std::string("plugin:shadewindow ").size());
-            break;
-        }
+    if (props->contains(m_RuleInvert) && truthy(props->at(m_RuleInvert)->effect)) {
+        shader = "invert";
+    } else if (props->contains(m_RuleShade)) {
+        shader = props->at(m_RuleShade)->effect;
     }
 
     auto windowIt = m_RuleShadedWindows.find(window);
