@@ -33,6 +33,9 @@ inline HANDLE PHANDLE = nullptr;
 inline WindowShader g_WindowShader;
 inline std::mutex g_ShaderMutex;
 
+inline Desktop::Rule::CWindowRuleEffectContainer::storageType g_RuleInvert;
+inline Desktop::Rule::CWindowRuleEffectContainer::storageType g_RuleShade;
+
 inline std::vector<SP<HOOK_CALLBACK_FN>> g_Callbacks;
 CFunctionHook* g_surfacePassDraw;
 
@@ -83,6 +86,9 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 
     HyprlandAPI::addConfigValue(PHANDLE, LOAD_SHADERS_KEY, Hyprlang::STRING("all"));
 
+    g_RuleInvert = Desktop::Rule::windowEffects()->registerEffect("plugin:invertwindow");
+    g_RuleShade = Desktop::Rule::windowEffects()->registerEffect("plugin:shadewindow");
+
     g_Callbacks = {};
     g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
         PHANDLE, "configReloaded",
@@ -95,6 +101,8 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
             std::lock_guard<std::mutex> lock(g_ShaderMutex);
 
             g_WindowShader = WindowShader();
+            g_WindowShader.m_RuleInvert = g_RuleInvert;
+            g_WindowShader.m_RuleShade = g_RuleShade;
 
             Hyprutils::String::CConstVarList list(
                 (Hyprlang::STRING) HyprlandAPI::getConfigValue(PHANDLE, LOAD_SHADERS_KEY)->dataPtr()
@@ -233,6 +241,9 @@ APICALL EXPORT void PLUGIN_EXIT()
     config->removeSpecialConfigValue(SHADER_CATEGORY, "args");
     config->removeSpecialConfigValue(SHADER_CATEGORY, "introduces_transparency");
     config->removeSpecialCategory(SHADER_CATEGORY);
+
+    Desktop::Rule::windowEffects()->unregisterEffect(g_RuleShade);
+    Desktop::Rule::windowEffects()->unregisterEffect(g_RuleInvert);
 }
 
 APICALL EXPORT std::string PLUGIN_API_VERSION()

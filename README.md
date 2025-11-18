@@ -44,9 +44,9 @@ darkwindow:shader[cool] {
 }
 
 # Then to apply the shader to a window you can use window rules
-windowrulev2 = plugin:shadewindow invert,class:(pb170.exe)
+windowrulev2 = plugin:shadewindow invert, match:class (pb170.exe)
 # Uniforms can also be passed on the fly
-windowrulev2 = plugin:shadewindow tint tintColor=[0 1 0],fullscreen:1
+windowrulev2 = plugin:shadewindow tint tintColor=[0 1 0], match:fullscreen true
 
 # Or use a dispatcher
 bind = $mainMod, T, shadeactivewindow, tint tintColor=[0 0.5 1] tintStrength=0.3

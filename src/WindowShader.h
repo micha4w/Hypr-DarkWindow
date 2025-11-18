@@ -1,7 +1,5 @@
 #pragma once
 
-#include <vector>
-
 #include "Helpers.h"
 
 #include <hyprland/src/Compositor.hpp>
@@ -23,6 +21,9 @@ public:
 
     std::optional<ShaderConfig*>& OnRenderWindowPre(PHLWINDOW window);
     void OnRenderWindowPost();
+
+    Desktop::Rule::CWindowRuleEffectContainer::storageType m_RuleInvert;
+    Desktop::Rule::CWindowRuleEffectContainer::storageType m_RuleShade;
 
 private:
     std::map<std::string, UP<ShaderConfig>> m_Shaders;
