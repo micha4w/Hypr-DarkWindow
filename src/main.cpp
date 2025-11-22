@@ -86,8 +86,8 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 
     HyprlandAPI::addConfigValue(PHANDLE, LOAD_SHADERS_KEY, Hyprlang::STRING("all"));
 
-    g_RuleInvert = Desktop::Rule::windowEffects()->registerEffect("plugin:invertwindow");
-    g_RuleShade = Desktop::Rule::windowEffects()->registerEffect("plugin:shadewindow");
+    g_RuleInvert = Desktop::Rule::windowEffects()->registerEffect("darkwindow:invert");
+    g_RuleShade = Desktop::Rule::windowEffects()->registerEffect("darkwindow:shade");
 
     g_Callbacks = {};
     g_Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
