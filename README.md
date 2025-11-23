@@ -28,6 +28,7 @@ Feel free to make a pull request if you want to add more shaders ([look here](./
 > BREAKING:
 > - WindowRules `invertwindow` and `shadewindow` were removed, use `darkwindow:shade [invert]` instead
 > - Shader definition was moved from `darkwindow:shader` to `plugin:darkwindow:shader`
+>
 > Deprecated:
 > - Dispatchers `invert[active]window` and `shade[active]window` will be removed soon, use `darkwindow:shade[active] [invert]` instead
 
