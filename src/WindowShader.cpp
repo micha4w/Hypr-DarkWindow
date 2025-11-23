@@ -121,8 +121,8 @@ void WindowShader::ShadeIfMatches(PHLWINDOW window)
     std::optional<std::string> shader;
     auto& props = window->m_ruleApplicator->m_otherProps.props;
 
-    if (auto& it = props.find(m_RuleShade); it != props.end())
-        shader = it->effect;
+    if (const auto& it = props.find(m_RuleShade); it != props.end())
+        shader = it->second->effect;
 
     auto windowIt = m_RuleShadedWindows.find(window);
     std::optional<std::string> currentShader;
