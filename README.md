@@ -66,12 +66,15 @@ bind = $mainMod, T, darkwindow:shadeactive, tint tintColor=[0 0.5 1] tintStrengt
 
 ## Installation
 
-### Hyprland >= v0.36.0
+### hyprpm
+```sh
+hyprpm add https://github.com/micha4w/Hypr-DarkWindow
+hyprpm enable Hypr-DarkWindow
+hyprpm reload
+```
 
-We now support Nix, wooo!
-
+### NixOS (home-manager)
 You should already have a fully working home-manager setup before adding this plugin.
-
 ```nix
 #flake.nix
 inputs = {
@@ -79,7 +82,7 @@ inputs = {
     hyprland = { ... };
     ...
     hypr-darkwindow = {
-      url = "github:micha4w/Hypr-DarkWindow/tags/v0.36.0";
+      url = "github:micha4w/Hypr-DarkWindow/tags/v0.36.0"; # Make sure to change the tag to match your hyprland version
       inputs.hyprland.follows = "hyprland";
     };
 };
@@ -97,28 +100,4 @@ outputs = {
     };
   };
 }
-```
-
-> [!NOTE]
-> In this example `inputs.hypr-darkwindow.url` sets the tag, Make sure that tag matches your Hyprland version.
-
-### Hyprland >= v0.34.0
-
-Install using `hyprpm`
-
-```sh
-hyprpm add https://github.com/micha4w/Hypr-DarkWindow
-hyprpm enable Hypr-DarkWindow
-hyprpm reload
-```
-
-### Hyprland >= v0.28.0
-
-Installable using [Hyprload](https://github.com/duckonaut/hyprload)
-
-```toml
-# hyprload.toml
-plugins = [
-  "micha4w/Hypr-DarkWindow",
-]
 ```
