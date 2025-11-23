@@ -33,8 +33,7 @@ inline HANDLE PHANDLE = nullptr;
 inline WindowShader g_WindowShader;
 inline std::mutex g_ShaderMutex;
 
-inline Desktop::Rule::CWindowRuleEffectContainer::storageType g_RuleInvert;
-inline Desktop::Rule::CWindowRuleEffectContainer::storageType g_RuleShade;
+inline WindowShader::WindowRuleEffect g_RuleShade;
 
 inline std::vector<SP<HOOK_CALLBACK_FN>> g_Callbacks;
 CFunctionHook* g_surfacePassDraw;
@@ -67,7 +66,7 @@ void hkSurfacePassDraw(CSurfacePassElement* thisptr, const CRegion& damage) {
 }
 
 
-const char* SHADER_CATEGORY = "darkwindow:shader";
+const char* SHADER_CATEGORY = "plugin:darkwindow:shader";
 const char* LOAD_SHADERS_KEY = "plugin:darkwindow:load_shaders";
 
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
@@ -78,8 +77,8 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
     const std::string CLIENT_HASH = __hyprland_api_get_client_hash();
     const std::string COMPOSITOR_HASH = __hyprland_api_get_hash();
     if (COMPOSITOR_HASH != CLIENT_HASH) {
-        HyprlandAPI::addNotification(PHANDLE, "[Hypr-DarkWindwow] Failed to load, mismatched versions! (see logs)", CHyprColor{1.0, 0.2, 0.2, 1.0}, 5000);
-        throw std::runtime_error(std::format("version mismatch, built against {}, running compositor {}", CLIENT_HASH, COMPOSITOR_HASH));
+        notifyError(PHANDLE, "Failed to load, mismatched versions! (see logs)");
+        throw efmt("version mismatch, built against {}, running compositor {}", CLIENT_HASH, COMPOSITOR_HASH);
     }
 
     Debug::log(INFO, "[Hypr-DarkWindow] Loading Plugin");
@@ -90,12 +89,11 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         config->addSpecialConfigValue(SHADER_CATEGORY, "from", "");
         config->addSpecialConfigValue(SHADER_CATEGORY, "path", "");
         config->addSpecialConfigValue(SHADER_CATEGORY, "args", "");
-        config->addSpecialConfigValue(SHADER_CATEGORY, "introduces_transparency", Hyprlang::INT{0});
+        config->addSpecialConfigValue(SHADER_CATEGORY, "introduces_transparency", Hyprlang::INT{ 0 });
     }
 
     HyprlandAPI::addConfigValue(PHANDLE, LOAD_SHADERS_KEY, Hyprlang::STRING("all"));
 
-    g_RuleInvert = Desktop::Rule::windowEffects()->registerEffect("darkwindow:invert");
     g_RuleShade = Desktop::Rule::windowEffects()->registerEffect("darkwindow:shade");
 
     g_Callbacks = {};
@@ -110,7 +108,6 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
             std::lock_guard<std::mutex> lock(g_ShaderMutex);
 
             g_WindowShader = WindowShader();
-            g_WindowShader.m_RuleInvert = g_RuleInvert;
             g_WindowShader.m_RuleShade = g_RuleShade;
 
             Hyprutils::String::CConstVarList list(
@@ -205,36 +202,34 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
             catch (const std::exception& ex)
             {
                 notifyError(PHANDLE, std::format("Exception in dispatcher: {}", ex.what()));
-                return SDispatchResult{
-                    .success = false,
-                    .error = ex.what(),
-                };
+                return SDispatchResult{ .success = false, .error = ex.what() };
             }
         };
     };
 
-    HyprlandAPI::addDispatcherV2(PHANDLE, "shadewindow", rescue([&](std::string args) {
+    const auto shade = rescue([&](std::string args) {
+        g_WindowShader.ToggleShade(g_pCompositor->m_lastWindow.lock(), args);
+    });
+    const auto shadeSpecific = rescue([&](std::string args) {
         size_t space = args.find(" ");
         if (space == std::string::npos) throw efmt("Expected 2 Arguments: <WINDOW> <SHADER>");
         g_WindowShader.ToggleShade(g_pCompositor->getWindowByRegex(args.substr(0, space)), args.substr(space + 1));
-    }));
-    HyprlandAPI::addDispatcherV2(PHANDLE, "shadeactivewindow", rescue([&](std::string args) {
-        g_WindowShader.ToggleShade(g_pCompositor->m_lastWindow.lock(), args);
-    }));
+    });
 
-    // Keep these keywords because backwards compatibility
-    HyprlandAPI::addDispatcherV2(PHANDLE, "invertwindow", rescue([&](std::string args) {
-        g_WindowShader.ToggleShade(g_pCompositor->getWindowByRegex(args), "invert");
-    }));
-    HyprlandAPI::addDispatcherV2(PHANDLE, "invertactivewindow", rescue([&](std::string args) {
-        g_WindowShader.ToggleShade(g_pCompositor->m_lastWindow.lock(), "invert");
-    }));
+    HyprlandAPI::addDispatcherV2(PHANDLE, "darkwindow:shade", shadeSpecific);
+    HyprlandAPI::addDispatcherV2(PHANDLE, "darkwindow:shadeactive", shade);
+
+    // Keep these keywords because backwards compatibility :)
+    HyprlandAPI::addDispatcherV2(PHANDLE, "shadeactivewindow", shade);
+    HyprlandAPI::addDispatcherV2(PHANDLE, "shadewindow", shadeSpecific);
+    HyprlandAPI::addDispatcherV2(PHANDLE, "invertactivewindow", [&](std::string args) { return shade("invert"); });
+    HyprlandAPI::addDispatcherV2(PHANDLE, "invertwindow", [&](std::string args) { return shadeSpecific(args + " invert"); });
 
     return {
         "Hypr-DarkWindow",
         "Allows you to set dark mode for only specific Windows",
         "micha4w",
-        "4.0.0"
+        "5.0.0"
     };
 }
 
@@ -252,7 +247,6 @@ APICALL EXPORT void PLUGIN_EXIT()
     config->removeSpecialCategory(SHADER_CATEGORY);
 
     Desktop::Rule::windowEffects()->unregisterEffect(g_RuleShade);
-    Desktop::Rule::windowEffects()->unregisterEffect(g_RuleInvert);
 }
 
 APICALL EXPORT std::string PLUGIN_API_VERSION()

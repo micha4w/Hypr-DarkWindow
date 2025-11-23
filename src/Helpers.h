@@ -17,7 +17,7 @@ inline auto efmt(std::format_string<Args...> fmt, Args&&... args)
 inline void notifyError(HANDLE handle, const std::string& err)
 {
     std::string msg = std::string("[Hypr-DarkWindow] ") + err;
-    Debug::log(ERR, "[Hypr-DarkWindow] {}", msg);
+    Debug::log(ERR, msg);
     HyprlandAPI::addNotification(
         handle,
         msg,

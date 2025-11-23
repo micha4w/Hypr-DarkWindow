@@ -10,7 +10,8 @@ There are few shaders already included in this plugin.
 All of them get loaded with the plugin, if you want to only load specific ones you can limit the shaders that are loaded.
 
 ```ini
-plugin:darkwindow:load_shaders = invert,tint,... # defaults to 'all'
+plugin:darkwindow:load_shaders = invert,tint # defaults to 'all'
+plugin:darkwindow:load_shaders = # dont load any default shaders
 ```
 
 | **Name**   | **Description**                                                                                              |
@@ -23,6 +24,13 @@ Feel free to make a pull request if you want to add more shaders ([look here](./
 
 ## Configuration
 
+> [!IMPORTANT]
+> BREAKING:
+> - WindowRules `invertwindow` and `shadewindow` were removed, use `darkwindow:shade [invert]` instead
+> - Shader definition was moved from `darkwindow:shader` to `plugin:darkwindow:shader`
+> Deprecated:
+> - Dispatchers `invert[active]window` and `shade[active]window` will be removed soon, use `darkwindow:shade[active] [invert]` instead
+
 > [!NOTE]
 > You can only have one shader applied at the same time.
 > Applying a shader to a window which already has one applied will override the first one.
@@ -30,27 +38,29 @@ Feel free to make a pull request if you want to add more shaders ([look here](./
 ```ini
 # hyprland.conf
 
-# To modify the uniforms of an already existing shader, create a new shader and set the uniforms you want
-darkwindow:shader[tintRed] {
-    from = tint
-    args = tintColor=[1 0 0] tintStrength=0.1
-}
+plugin:darkwindow {
+  # To modify the uniforms of an already existing shader, create a new shader and set the uniforms you want
+  shader[tintRed] {
+      from = tint
+      args = tintColor=[1 0 0] tintStrength=0.1
+  }
 
-# Use a custom shader from a file, check out ./src/WindowShader.cpp:7 to see examples for the files content
-darkwindow:shader[cool] {
-    path = /path/to/shader.glsl
-    args = wow=[1.0 0 0]
-    introduces_transparency = true # if you modify the alpha value make sure to set this value to true so hyprland knows it should enable blur
+  # Use a custom shader from a file, check out ./src/WindowShader.cpp:7 to see examples for the files content
+  shader[cool] {
+      path = /path/to/shader.glsl
+      args = wow=[1.0 0 0]
+      introduces_transparency = true # if you modify the alpha value make sure to set this value to true so hyprland knows it should enable blur
+  }
 }
 
 # Then to apply the shader to a window you can use window rules
-windowrulev2 = plugin:shadewindow invert, match:class (pb170.exe)
-# Uniforms can also be passed on the fly
-windowrulev2 = plugin:shadewindow tint tintColor=[0 1 0], match:fullscreen true
+windowrule = darkwindow:shade invert, match:class (pb170.exe)
+# Uniforms can also be passed on the fly, but make sure to not use commas inside the arrays
+windowrule = darkwindow:shade tint tintColor=[0 1 0], match:fullscreen true
 
 # Or use a dispatcher
-bind = $mainMod, T, shadeactivewindow, tint tintColor=[0 0.5 1] tintStrength=0.3
-# There is also a `shadewindow WINDOW_REGEX SHADER_NAME` available (see window in https://wiki.hypr.land/Configuring/Dispatchers/#parameter-explanation)
+bind = $mainMod, T, darkwindow:shadeactive, tint tintColor=[0 0.5 1] tintStrength=0.3
+# There is also a `darkwindow:shade WINDOW_REGEX SHADER_NAME` available (see window in https://wiki.hypr.land/Configuring/Dispatchers/#parameter-explanation)
 ```
 
 ## Installation

@@ -119,13 +119,10 @@ void WindowShader::ShadeIfMatches(PHLWINDOW window)
     if (!window) return;
 
     std::optional<std::string> shader;
-    auto props = &window->m_ruleApplicator->m_otherProps.props;
+    auto& props = window->m_ruleApplicator->m_otherProps.props;
 
-    if (props->contains(m_RuleInvert) && truthy(props->at(m_RuleInvert)->effect)) {
-        shader = "invert";
-    } else if (props->contains(m_RuleShade)) {
-        shader = props->at(m_RuleShade)->effect;
-    }
+    if (auto& it = props.find(m_RuleShade); it != props.end())
+        shader = it->effect;
 
     auto windowIt = m_RuleShadedWindows.find(window);
     std::optional<std::string> currentShader;
@@ -270,7 +267,7 @@ ShaderConfig* WindowShader::EnsureShader(const std::string& shader)
     else
     {
         auto from = Hyprutils::String::trim(shader.substr(0, space));
-
-        return AddShader({ shader, from, "", shader.substr(space + 1), false });
+        auto args = shader.substr(space + 1);
+        return AddShader({ shader, from, {}, args, {} });
     }
 }
