@@ -8,6 +8,7 @@
 #include <hyprland/src/config/ConfigManager.hpp>
 #undef m_failedPluginConfigValues
 
+#include <hyprland/src/desktop/state/FocusState.hpp>
 #include <hyprutils/string/ConstVarList.hpp>
 #include <hyprutils/string/String.hpp>
 
@@ -208,7 +209,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
     };
 
     const auto shade = rescue([&](std::string args) {
-        g_WindowShader.ToggleShade(g_pCompositor->m_lastWindow.lock(), args);
+        g_WindowShader.ToggleShade(Desktop::focusState()->window(), args);
     });
     const auto shadeSpecific = rescue([&](std::string args) {
         size_t space = args.find(" ");
