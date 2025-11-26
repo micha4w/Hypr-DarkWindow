@@ -4,6 +4,11 @@ Hyprland plugin that adds possibility to modify the fragment shader of a specifi
 
 ![preview](./res/preview.png)
 
+> [!IMPORTANT]
+> The main branch is always up to date with Hyprlands main branch,
+> if you are using a release version of Hyprland check the Readme of the specific tag.
+
+
 ## Shaders
 
 There are few shaders already included in this plugin.
