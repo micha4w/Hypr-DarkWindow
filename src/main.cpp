@@ -45,15 +45,23 @@ void hkSurfacePassDraw(CSurfacePassElement* thisptr, const CRegion& damage) {
     {
         std::lock_guard<std::mutex> lock(g_ShaderMutex);
         auto shader = g_WindowShader.OnRenderWindowPre(thisptr->m_data.pWindow);
-        if (shader && (*shader)->Transparent == IntroducesTransparency::Yes) {
-            // TODO: undo these changes?
-            thisptr->m_data.blur = true;
-            if (thisptr->m_data.texture) thisptr->m_data.texture->m_opaque = false;
-            if (thisptr->m_data.surface && !thisptr->m_data.surface->m_current.opaque.empty())
-            {
-                thisptr->m_data.surface->m_current.opaque.clear();
-                // TODO: For some reason we need to damage the window twice?
-                g_pHyprRenderer->damageWindow(thisptr->m_data.pWindow);
+        if (shader) {
+            bool usesTime = false;
+            for(auto loc : (*shader)->CompiledShaders->TimeLocations) {
+                if(loc != -1) usesTime = true;
+            }
+
+            if ((*shader)->Transparent == IntroducesTransparency::Yes || usesTime) {
+                thisptr->m_data.blur = true;
+                if (thisptr->m_data.texture) thisptr->m_data.texture->m_opaque = false;
+                
+                // Both transparency and time uniforms require damage to be applied to the window
+                g_pHyprRenderer->damageWindow(thisptr->m_data.pWindow); 
+
+                if (thisptr->m_data.surface && !thisptr->m_data.surface->m_current.opaque.empty())
+                {
+                    thisptr->m_data.surface->m_current.opaque.clear();
+                }
             }
         }
     }

@@ -1,7 +1,10 @@
 #pragma once
 
+#include <chrono>
+#include <format>
 #include <string>
 #include <cstring>
+#include <stdexcept>
 
 #include <hyprland/src/render/Renderer.hpp>
 #include <hyprland/src/config/ConfigManager.hpp>
@@ -65,6 +68,7 @@ struct ShaderHolder
 {
     std::map<std::string, std::array<GLint, 4>> UniformLocations;
 
+    std::array<GLint, 4> TimeLocations;
     SShader CM;
     SShader RGBA;
     SShader RGBX;
