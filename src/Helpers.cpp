@@ -75,11 +75,11 @@ Uniforms ShaderDefinition::ParseArgs(const std::string& args)
         {
             bool first = c>='a' && c<='z' || c>='A' && c<='Z' || c=='_';
             bool other = c>='0' && c<='9';
+            bool special = c == '[' || c == ']' || c == '.';
 
-            if (!(first || other && i != 0))
+            if (!(first || ((other || special) && i != 0)))
                 throw efmt("invalid shader uniform name '{}'", name);
         }
-
         ss >> std::ws;
         
         std::vector<float> values;
