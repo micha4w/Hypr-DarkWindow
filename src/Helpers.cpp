@@ -157,12 +157,19 @@ void ShaderHolder::ApplyArgs(const Uniforms& args) noexcept
     GLint prog;
     glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
 
+    static auto startTime = std::chrono::high_resolution_clock::now();
+    float currentTime = std::chrono::duration_cast<std::chrono::duration<float>>(
+        std::chrono::high_resolution_clock::now() - startTime
+    ).count();
+
     SShader* shaders[4] = { &CM, &RGBA, &RGBX, &EXT };
     for (int i = 0; i < 4; i++)
     {
         if (!shaders[i]->program) continue;
 
         glUseProgram(shaders[i]->program);
+        if (TimeLocations[i] != -1)
+            glUniform1f(TimeLocations[i], currentTime);
         for (auto& [name, values] : args)
         {
             GLint loc = UniformLocations[name][i];
@@ -276,6 +283,14 @@ ShaderHolder::ShaderHolder(const std::string& source)
     EXT.uniformLocations[SHADER_APPLY_TINT]          = glGetUniformLocation(EXT.program, "applyTint");
     EXT.uniformLocations[SHADER_TINT]                = glGetUniformLocation(EXT.program, "tint");
     EXT.createVao();
+
+    SShader* shaders[4] = { &CM, &RGBA, &RGBX, &EXT };
+    for (int i = 0; i < 4; i++) {
+        if (shaders[i]->program)
+            TimeLocations[i] = glGetUniformLocation(shaders[i]->program, "time");
+        else
+            TimeLocations[i] = -1;
+    }
 }
 
 ShaderHolder::~ShaderHolder()
