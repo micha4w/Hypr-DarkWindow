@@ -32,7 +32,7 @@ static void logShaderError(const GLuint& shader, bool program, bool silent = fal
 
     const auto  FULLERROR = (program ? "Screen shader parser: Error linking program:" : "Screen shader parser: Error compiling shader: ") + errorStr;
 
-    Debug::log(ERR, "Failed to link shader: {}", FULLERROR);
+    Log::logger->log(Log::ERR, "Failed to link shader: {}", FULLERROR);
 
     if (!silent)
         g_pConfigManager->addParseError(FULLERROR);

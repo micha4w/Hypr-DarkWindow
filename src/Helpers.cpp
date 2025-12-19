@@ -22,7 +22,7 @@ static std::string editShader(std::string source, const std::string& windowShade
     } else {
         // es 200
         if (!source.contains("gl_FragColor")) {
-            Debug::log(ERR, "Failed to edit GLSL Code, no gl_FragColor:\n{}", source);
+            Log::logger->log(Log::ERR, "Failed to edit GLSL Code, no gl_FragColor:\n{}", source);
             throw efmt("Frag source does not contain a usage of 'gl_FragColor'");
         }
 
@@ -30,7 +30,7 @@ static std::string editShader(std::string source, const std::string& windowShade
     }
 
     if (!source.contains("void main(")) {
-        Debug::log(ERR, "Failed to edit GLSL Code, no main function: {}", source);
+        Log::logger->log(Log::ERR, "Failed to edit GLSL Code, no main function: {}", source);
         throw efmt("Frag source does not contain an occurence of 'void main('");
     }
 

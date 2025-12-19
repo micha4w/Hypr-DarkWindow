@@ -1,4 +1,5 @@
 #include <hyprland/src/render/pass/PassElement.hpp>
+#include <hyprland/src/helpers/time/Time.hpp>
 
 #define private public
 #include <hyprland/src/render/pass/SurfacePassElement.hpp>
@@ -82,7 +83,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         throw efmt("version mismatch, built against {}, running compositor {}", CLIENT_HASH, COMPOSITOR_HASH);
     }
 
-    Debug::log(INFO, "[Hypr-DarkWindow] Loading Plugin");
+    Log::logger->log(Log::INFO, "[Hypr-DarkWindow] Loading Plugin");
 
     {
         auto& config = ConfigManagerFriend::GetConfig();
@@ -102,7 +103,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         PHANDLE, "configReloaded",
         [&](void* self, SCallbackInfo&, std::any data) {
             if (!g_pHyprOpenGL->m_shadersInitialized) {
-                Debug::log(WARN, "[Hypr-DarkWindow] Initializing shaders since they havent been initialized by Hyprland yet");
+                Log::logger->log(Log::WARN, "[Hypr-DarkWindow] Initializing shaders since they havent been initialized by Hyprland yet");
                 g_pHyprOpenGL->initShaders();
             }
 
@@ -151,7 +152,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
                 }
             }
 
-            Debug::log(INFO, "[Hypr-DarkWindow] Compiled all shaders");
+            Log::logger->log(Log::INFO, "[Hypr-DarkWindow] Compiled all shaders");
             try
             {
                 g_WindowShader.ReshadeWindows();

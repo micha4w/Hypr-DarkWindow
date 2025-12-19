@@ -1,5 +1,7 @@
 #include "WindowShader.h"
 
+#include <fstream>
+
 #include <hyprutils/string/String.hpp>
 #include <hyprland/src/managers/eventLoop/EventLoopManager.hpp>
 #include <hyprland/src/helpers/MiscFunctions.hpp>
@@ -178,7 +180,7 @@ void WindowShader::AddPredefinedShader(const std::string& name)
         if (self->m_Shaders.contains(source.first)) return;
         auto& [id, options] = source;
 
-        Debug::log(INFO, "Loading predefined shader with name: {}", id);
+        Log::logger->log(Log::INFO, "Loading predefined shader with name: {}", id);
 
         UP<ShaderConfig> shader(new ShaderConfig{
             .ID = id,
@@ -213,7 +215,7 @@ ShaderConfig* WindowShader::AddShader(ShaderDefinition def)
     auto found = m_Shaders.find(def.ID);
     if (found != m_Shaders.end()) return found->second.get();
 
-    Debug::log(INFO, "Loading custom shader with id: {}", def.ID);
+    Log::logger->log(Log::INFO, "Loading custom shader with id: {}", def.ID);
 
     UP<ShaderConfig> shader(new ShaderConfig{ .ID = def.ID });
 
