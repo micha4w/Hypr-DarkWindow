@@ -73,15 +73,15 @@ Uniforms ShaderDefinition::ParseArgs(const std::string& args)
         name = Hyprutils::String::trim(name);
         for (auto [i, c] : std::views::enumerate(name))
         {
-            bool first = c>='a' && c<='z' || c>='A' && c<='Z' || c=='_';
-            bool other = c>='0' && c<='9';
+            bool first = c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_';
+            bool other = c >= '0' && c <= '9';
             bool special = c == '[' || c == ']' || c == '.';
 
             if (!(first || ((other || special) && i != 0)))
                 throw efmt("invalid shader uniform name '{}'", name);
         }
         ss >> std::ws;
-        
+
         std::vector<float> values;
         if (ss.peek() == '[')
         {
@@ -131,24 +131,17 @@ Uniforms ShaderDefinition::ParseArgs(const std::string& args)
 void ShaderHolder::PrimeUniforms(const Uniforms& args)
 {
     g_pHyprRenderer->makeEGLCurrent();
-    Hyprutils::Utils::CScopeGuard _egl([&]{ g_pHyprRenderer->unsetEGL(); });
+    Hyprutils::Utils::CScopeGuard _egl([&] { g_pHyprRenderer->unsetEGL(); });
 
-    for (auto& [name, _] : args)
-    {
-        if (UniformLocations.contains(name)) continue;
-
-        SShader* shaders[4] = { &CM, &RGBA, &RGBX, &EXT };
-        std::array<GLint, 4> locs;
-        for (int i = 0; i < 4; i++)
+    for (auto& [_, s] : Shaders) {
+        for (auto& [name, _] : args)
         {
-            if (!shaders[i]->program) continue;
+            if (s.UniformLocations.contains(name)) continue;
 
-            GLint loc = glGetUniformLocation(shaders[i]->program, name.c_str());
+            GLint loc = glGetUniformLocation(s.Shader->program(), name.c_str());
             if (loc == -1) throw efmt("Shader failed to find the uniform: {}", name);
-            locs[i] = loc;
+            s.UniformLocations[name] = loc;
         }
-
-        UniformLocations[name] = locs;
     }
 }
 
@@ -157,29 +150,26 @@ void ShaderHolder::ApplyArgs(const Uniforms& args) noexcept
     GLint prog;
     glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
 
-    SShader* shaders[4] = { &CM, &RGBA, &RGBX, &EXT };
-    for (int i = 0; i < 4; i++)
+    for (auto& [_, s] : Shaders)
     {
-        if (!shaders[i]->program) continue;
-
-        glUseProgram(shaders[i]->program);
+        glUseProgram(s.Shader->program());
         for (auto& [name, values] : args)
         {
-            GLint loc = UniformLocations[name][i];
+            GLint loc = s.UniformLocations[name];
             switch (values.size())
             {
-                case 1:
-                    glUniform1f(loc, values[0]);
-                    break;
-                case 2:
-                    glUniform2f(loc, values[0], values[1]);
-                    break;
-                case 3:
-                    glUniform3f(loc, values[0], values[1], values[2]);
-                    break;
-                case 4:
-                    glUniform4f(loc, values[0], values[1], values[2], values[3]);
-                    break;
+            case 1:
+                glUniform1f(loc, values[0]);
+                break;
+            case 2:
+                glUniform2f(loc, values[0], values[1]);
+                break;
+            case 3:
+                glUniform3f(loc, values[0], values[1], values[2]);
+                break;
+            case 4:
+                glUniform4f(loc, values[0], values[1], values[2], values[3]);
+                break;
             }
         }
     }
@@ -191,101 +181,38 @@ void ShaderHolder::ApplyArgs(const Uniforms& args) noexcept
 ShaderHolder::ShaderHolder(const std::string& source)
 {
     g_pHyprRenderer->makeEGLCurrent();
-    Hyprutils::Utils::CScopeGuard _egl([&]{ g_pHyprRenderer->unsetEGL(); });
+    Hyprutils::Utils::CScopeGuard _egl([&] { g_pHyprRenderer->unsetEGL(); });
 
     std::map<std::string, std::string> includes;
     loadShaderInclude("rounding.glsl", includes);
     loadShaderInclude("CM.glsl", includes);
+    loadShaderInclude("gain.glsl", includes);
+    loadShaderInclude("border.glsl", includes);
 
-    const auto& TEXVERTSRC             = g_pHyprOpenGL->m_shaders->TEXVERTSRC;
+    const auto& TEXVERTSRC = g_pHyprOpenGL->m_shaders->TEXVERTSRC;
 
-    const auto TEXFRAGSRCCM           = editShader(processShader("CM.frag", includes), source);
-    const auto TEXFRAGSRCRGBA         = editShader(processShader("rgba.frag", includes), source);
-    const auto TEXFRAGSRCRGBX         = editShader(processShader("rgbx.frag", includes), source);
-    const auto TEXFRAGSRCEXT          = editShader(processShader("ext.frag", includes), source);
+    for (auto& [id, fragFile] : {
+        std::pair{ SH_FRAG_RGBA,    "rgba.frag"   },
+                 { SH_FRAG_RGBX,    "rgbx.frag"   },
+                 { SH_FRAG_EXT,     "ext.frag"    },
+                 { SH_FRAG_CM_RGBA, "CMrgba.frag" },
+                 { SH_FRAG_CM_RGBX, "CMrgbx.frag" },
+        }) {
+        // skip CM s if hyprland skipped them too
+        if (!g_pHyprOpenGL->m_shaders->frag[id]) continue;
 
-    CM.program = createProgram(TEXVERTSRC, TEXFRAGSRCCM, true, true);
-    if (CM.program) {
-        getCMShaderUniforms(CM);
-        getRoundingShaderUniforms(CM);
+        auto fragSrc = editShader(processShader(fragFile, includes), source);
 
-        CM.uniformLocations[SHADER_PROJ]                = glGetUniformLocation(CM.program, "proj");
-        CM.uniformLocations[SHADER_TEX]                 = glGetUniformLocation(CM.program, "tex");
-        CM.uniformLocations[SHADER_TEX_TYPE]            = glGetUniformLocation(CM.program, "texType");
-        CM.uniformLocations[SHADER_ALPHA_MATTE]         = glGetUniformLocation(CM.program, "texMatte");
-        CM.uniformLocations[SHADER_ALPHA]               = glGetUniformLocation(CM.program, "alpha");
-        CM.uniformLocations[SHADER_TEX_ATTRIB]          = glGetAttribLocation(CM.program, "texcoord");
-        CM.uniformLocations[SHADER_MATTE_TEX_ATTRIB]    = glGetAttribLocation(CM.program, "texcoordMatte");
-        CM.uniformLocations[SHADER_POS_ATTRIB]          = glGetAttribLocation(CM.program, "pos");
-        CM.uniformLocations[SHADER_DISCARD_OPAQUE]      = glGetUniformLocation(CM.program, "discardOpaque");
-        CM.uniformLocations[SHADER_DISCARD_ALPHA]       = glGetUniformLocation(CM.program, "discardAlpha");
-        CM.uniformLocations[SHADER_DISCARD_ALPHA_VALUE] = glGetUniformLocation(CM.program, "discardAlphaValue");
-        CM.uniformLocations[SHADER_APPLY_TINT]          = glGetUniformLocation(CM.program, "applyTint");
-        CM.uniformLocations[SHADER_TINT]                = glGetUniformLocation(CM.program, "tint");
-        CM.uniformLocations[SHADER_USE_ALPHA_MATTE]     = glGetUniformLocation(CM.program, "useAlphaMatte");
-        CM.createVao();
-    } else {
-        if (g_pHyprOpenGL->m_shaders->m_shCM.program)
-            throw efmt("Failed to create Shader: CM.frag, check hyprland logs");
+
+        Shaders[id].Shader = makeShared<CShader>();
+        if (!Shaders[id].Shader->createProgram(TEXVERTSRC, fragSrc, true, true))
+            throw efmt("Failed to create Shader: {}, check hyprland logs", fragFile);
     }
-
-    RGBA.program = createProgram(TEXVERTSRC, TEXFRAGSRCRGBA, true, true);
-    if (!RGBA.program) throw efmt("Failed to create Shader: rgba.frag, check hyprland logs");
-    getRoundingShaderUniforms(RGBA);
-    RGBA.uniformLocations[SHADER_PROJ]                = glGetUniformLocation(RGBA.program, "proj");
-    RGBA.uniformLocations[SHADER_TEX]                 = glGetUniformLocation(RGBA.program, "tex");
-    RGBA.uniformLocations[SHADER_ALPHA_MATTE]         = glGetUniformLocation(RGBA.program, "texMatte");
-    RGBA.uniformLocations[SHADER_ALPHA]               = glGetUniformLocation(RGBA.program, "alpha");
-    RGBA.uniformLocations[SHADER_TEX_ATTRIB]          = glGetAttribLocation(RGBA.program, "texcoord");
-    RGBA.uniformLocations[SHADER_MATTE_TEX_ATTRIB]    = glGetAttribLocation(RGBA.program, "texcoordMatte");
-    RGBA.uniformLocations[SHADER_POS_ATTRIB]          = glGetAttribLocation(RGBA.program, "pos");
-    RGBA.uniformLocations[SHADER_DISCARD_OPAQUE]      = glGetUniformLocation(RGBA.program, "discardOpaque");
-    RGBA.uniformLocations[SHADER_DISCARD_ALPHA]       = glGetUniformLocation(RGBA.program, "discardAlpha");
-    RGBA.uniformLocations[SHADER_DISCARD_ALPHA_VALUE] = glGetUniformLocation(RGBA.program, "discardAlphaValue");
-    RGBA.uniformLocations[SHADER_APPLY_TINT]          = glGetUniformLocation(RGBA.program, "applyTint");
-    RGBA.uniformLocations[SHADER_TINT]                = glGetUniformLocation(RGBA.program, "tint");
-    RGBA.uniformLocations[SHADER_USE_ALPHA_MATTE]     = glGetUniformLocation(RGBA.program, "useAlphaMatte");
-    RGBA.createVao();
-
-    RGBX.program = createProgram(TEXVERTSRC, TEXFRAGSRCRGBX, true, true);
-    if (!RGBX.program) throw efmt("Failed to create Shader: rgbx.frag, check hyprland logs");
-    getRoundingShaderUniforms(RGBX);
-    RGBX.uniformLocations[SHADER_TEX]                 = glGetUniformLocation(RGBX.program, "tex");
-    RGBX.uniformLocations[SHADER_PROJ]                = glGetUniformLocation(RGBX.program, "proj");
-    RGBX.uniformLocations[SHADER_ALPHA]               = glGetUniformLocation(RGBX.program, "alpha");
-    RGBX.uniformLocations[SHADER_TEX_ATTRIB]          = glGetAttribLocation(RGBX.program, "texcoord");
-    RGBX.uniformLocations[SHADER_POS_ATTRIB]          = glGetAttribLocation(RGBX.program, "pos");
-    RGBX.uniformLocations[SHADER_DISCARD_OPAQUE]      = glGetUniformLocation(RGBX.program, "discardOpaque");
-    RGBX.uniformLocations[SHADER_DISCARD_ALPHA]       = glGetUniformLocation(RGBX.program, "discardAlpha");
-    RGBX.uniformLocations[SHADER_DISCARD_ALPHA_VALUE] = glGetUniformLocation(RGBX.program, "discardAlphaValue");
-    RGBX.uniformLocations[SHADER_APPLY_TINT]          = glGetUniformLocation(RGBX.program, "applyTint");
-    RGBX.uniformLocations[SHADER_TINT]                = glGetUniformLocation(RGBX.program, "tint");
-    RGBX.createVao();
-
-    EXT.program = createProgram(TEXVERTSRC, TEXFRAGSRCEXT, true, true);
-    if (!EXT.program) throw efmt("Failed to create Shader: ext.frag, check hyprland logs");
-    getRoundingShaderUniforms(EXT);
-    EXT.uniformLocations[SHADER_TEX]                 = glGetUniformLocation(EXT.program, "tex");
-    EXT.uniformLocations[SHADER_PROJ]                = glGetUniformLocation(EXT.program, "proj");
-    EXT.uniformLocations[SHADER_ALPHA]               = glGetUniformLocation(EXT.program, "alpha");
-    EXT.uniformLocations[SHADER_POS_ATTRIB]          = glGetAttribLocation(EXT.program, "pos");
-    EXT.uniformLocations[SHADER_TEX_ATTRIB]          = glGetAttribLocation(EXT.program, "texcoord");
-    EXT.uniformLocations[SHADER_DISCARD_OPAQUE]      = glGetUniformLocation(EXT.program, "discardOpaque");
-    EXT.uniformLocations[SHADER_DISCARD_ALPHA]       = glGetUniformLocation(EXT.program, "discardAlpha");
-    EXT.uniformLocations[SHADER_DISCARD_ALPHA_VALUE] = glGetUniformLocation(EXT.program, "discardAlphaValue");
-    EXT.uniformLocations[SHADER_APPLY_TINT]          = glGetUniformLocation(EXT.program, "applyTint");
-    EXT.uniformLocations[SHADER_TINT]                = glGetUniformLocation(EXT.program, "tint");
-    EXT.createVao();
 }
 
 ShaderHolder::~ShaderHolder()
 {
     g_pHyprRenderer->makeEGLCurrent();
-
-    CM.destroy();
-    RGBA.destroy();
-    RGBX.destroy();
-    EXT.destroy();
-
+    Shaders.clear();
     g_pHyprRenderer->unsetEGL();
 }

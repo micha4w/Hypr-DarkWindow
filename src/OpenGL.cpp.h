@@ -1,4 +1,4 @@
-// This file contains functions that were yoinked from hyprland/src/render/OpenGL.cpp
+// This file contains static functions that were yoinked from hyprland/src/render/OpenGL.cpp
 #pragma once
 
 #include <hyprland/src/render/OpenGL.hpp>
@@ -15,94 +15,6 @@ const std::vector<const char*> ASSET_PATHS = {
     "/usr/share",
     "/usr/local/share",
 };
-
-static void logShaderError(const GLuint& shader, bool program, bool silent = false) {
-    GLint maxLength = 0;
-    if (program)
-        glGetProgramiv(shader, GL_INFO_LOG_LENGTH, &maxLength);
-    else
-        glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &maxLength);
-
-    std::vector<GLchar> errorLog(maxLength);
-    if (program)
-        glGetProgramInfoLog(shader, maxLength, &maxLength, errorLog.data());
-    else
-        glGetShaderInfoLog(shader, maxLength, &maxLength, errorLog.data());
-    std::string errorStr(errorLog.begin(), errorLog.end());
-
-    const auto  FULLERROR = (program ? "Screen shader parser: Error linking program:" : "Screen shader parser: Error compiling shader: ") + errorStr;
-
-    Log::logger->log(Log::ERR, "Failed to link shader: {}", FULLERROR);
-
-    if (!silent)
-        g_pConfigManager->addParseError(FULLERROR);
-}
-
-static GLuint compileShader(const GLuint& type, std::string src, bool dynamic, bool silent) {
-    auto shader = glCreateShader(type);
-
-    auto shaderSource = src.c_str();
-
-    glShaderSource(shader, 1, (const GLchar**)&shaderSource, nullptr);
-    glCompileShader(shader);
-
-    GLint ok;
-    glGetShaderiv(shader, GL_COMPILE_STATUS, &ok);
-
-    if (dynamic) {
-        if (ok == GL_FALSE) {
-            logShaderError(shader, false, silent);
-            return 0;
-        }
-    } else {
-        if (ok != GL_TRUE)
-            logShaderError(shader, false);
-        RASSERT(ok != GL_FALSE, "compileShader() failed! GL_COMPILE_STATUS not OK!");
-    }
-
-    return shader;
-}
-
-static GLuint createProgram(const std::string& vert, const std::string& frag, bool dynamic, bool silent) {
-    auto vertCompiled = compileShader(GL_VERTEX_SHADER, vert, dynamic, silent);
-    if (dynamic) {
-        if (vertCompiled == 0)
-            return 0;
-    } else
-        RASSERT(vertCompiled, "Compiling shader failed. VERTEX nullptr! Shader source:\n\n{}", vert);
-
-    auto fragCompiled = compileShader(GL_FRAGMENT_SHADER, frag, dynamic, silent);
-    if (dynamic) {
-        if (fragCompiled == 0)
-            return 0;
-    } else
-        RASSERT(fragCompiled, "Compiling shader failed. FRAGMENT nullptr! Shader source:\n\n{}", frag);
-
-    auto prog = glCreateProgram();
-    glAttachShader(prog, vertCompiled);
-    glAttachShader(prog, fragCompiled);
-    glLinkProgram(prog);
-
-    glDetachShader(prog, vertCompiled);
-    glDetachShader(prog, fragCompiled);
-    glDeleteShader(vertCompiled);
-    glDeleteShader(fragCompiled);
-
-    GLint ok;
-    glGetProgramiv(prog, GL_LINK_STATUS, &ok);
-    if (dynamic) {
-        if (ok == GL_FALSE) {
-            logShaderError(prog, true, silent);
-            return 0;
-        }
-    } else {
-        if (ok != GL_TRUE)
-            logShaderError(prog, true);
-        RASSERT(ok != GL_FALSE, "createProgram() failed! GL_LINK_STATUS not OK!");
-    }
-
-    return prog;
-}
 
 static std::string loadShader(const std::string& filename) {
     const auto home = Hyprutils::Path::getHome();
@@ -135,28 +47,4 @@ static std::string processShader(const std::string& filename, const std::map<std
     auto source = loadShader(filename);
     processShaderIncludes(source, includes);
     return source;
-}
-
-// shader has #include "CM.glsl"
-static void getCMShaderUniforms(SShader& shader) {
-    shader.uniformLocations[SHADER_SKIP_CM]           = glGetUniformLocation(shader.program, "skipCM");
-    shader.uniformLocations[SHADER_SOURCE_TF]         = glGetUniformLocation(shader.program, "sourceTF");
-    shader.uniformLocations[SHADER_TARGET_TF]         = glGetUniformLocation(shader.program, "targetTF");
-    shader.uniformLocations[SHADER_SRC_TF_RANGE]      = glGetUniformLocation(shader.program, "srcTFRange");
-    shader.uniformLocations[SHADER_DST_TF_RANGE]      = glGetUniformLocation(shader.program, "dstTFRange");
-    shader.uniformLocations[SHADER_TARGET_PRIMARIES]  = glGetUniformLocation(shader.program, "targetPrimaries");
-    shader.uniformLocations[SHADER_MAX_LUMINANCE]     = glGetUniformLocation(shader.program, "maxLuminance");
-    shader.uniformLocations[SHADER_DST_MAX_LUMINANCE] = glGetUniformLocation(shader.program, "dstMaxLuminance");
-    shader.uniformLocations[SHADER_DST_REF_LUMINANCE] = glGetUniformLocation(shader.program, "dstRefLuminance");
-    shader.uniformLocations[SHADER_SDR_SATURATION]    = glGetUniformLocation(shader.program, "sdrSaturation");
-    shader.uniformLocations[SHADER_SDR_BRIGHTNESS]    = glGetUniformLocation(shader.program, "sdrBrightnessMultiplier");
-    shader.uniformLocations[SHADER_CONVERT_MATRIX]    = glGetUniformLocation(shader.program, "convertMatrix");
-}
-
-// shader has #include "rounding.glsl"
-static void getRoundingShaderUniforms(SShader& shader) {
-    shader.uniformLocations[SHADER_TOP_LEFT]       = glGetUniformLocation(shader.program, "topLeft");
-    shader.uniformLocations[SHADER_FULL_SIZE]      = glGetUniformLocation(shader.program, "fullSize");
-    shader.uniformLocations[SHADER_RADIUS]         = glGetUniformLocation(shader.program, "radius");
-    shader.uniformLocations[SHADER_ROUNDING_POWER] = glGetUniformLocation(shader.program, "roundingPower");
 }

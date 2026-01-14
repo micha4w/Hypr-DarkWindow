@@ -35,18 +35,6 @@ inline auto findFunction(HANDLE handle, const std::string& className, const std:
     return found != all.end() ? std::optional(*found) : std::optional<SFunctionMatch>();
 };
 
-namespace std
-{
-    inline void swap(SShader& a, SShader& b)
-    {
-        // memcpy because speed!
-        uint8_t c[sizeof(SShader)];
-        std::memcpy(&c, &a, sizeof(SShader));
-        std::memcpy(&a, &b, sizeof(SShader));
-        std::memcpy(&b, &c, sizeof(SShader));
-    }
-}
-
 using Uniforms = std::map<std::string, std::vector<float>>;
 struct ShaderDefinition
 {
@@ -63,12 +51,12 @@ struct ShaderDefinition
 
 struct ShaderHolder
 {
-    std::map<std::string, std::array<GLint, 4>> UniformLocations;
+    struct CustomShader {
+        std::map<std::string, GLint> UniformLocations;
+        SP<CShader> Shader;
+    };
 
-    SShader CM;
-    SShader RGBA;
-    SShader RGBX;
-    SShader EXT;
+    std::map<ePreparedFragmentShader, CustomShader> Shaders;
 
     ShaderHolder(const std::string& source);
     ~ShaderHolder();
