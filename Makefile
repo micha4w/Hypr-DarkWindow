@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -fPIC --no-gnu-unique -Isrc/ -g -std=c++2b -DWLR_USE_UNSTABLE
+CXXFLAGS = -fPIC --no-gnu-unique -Isrc/ -g -std=c++2b
 
 
 SRC_DIR = src

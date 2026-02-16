@@ -1,6 +1,6 @@
 {
   inputs = {
-    hyprland.url = "git+https://github.com/hyprwm/Hyprland?submodules=1";
+    hyprland.url = "github:hyprwm/Hyprland";
 
     nix-filter.url = "github:numtide/nix-filter";
   };
@@ -29,7 +29,7 @@
         rec {
           Hypr-DarkWindow = pkgs.gcc14Stdenv.mkDerivation {
             pname = "Hypr-DarkWindow";
-            version = "5.0.0";
+            version = "5.1.0";
             src = nix-filter.lib {
               root = ./.;
               include = [
@@ -62,10 +62,12 @@
         system: pkgs: {
           default = pkgs.mkShell {
             name = "Hypr-DarkWindow";
+            hardeningDisable = [ "fortify" ];
 
             nativeBuildInputs = with pkgs; [
-              clang-tools_16
+              clang-tools
               jq
+              chromium
             ];
 
             inputsFrom = [ self.packages.${system}.Hypr-DarkWindow ];
