@@ -9,6 +9,47 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
     g.AddConfigValues();
     g.HookFunctions();
 
+    const auto shade = g.HandleError([&](std::string args) {
+        g.Manager.ApplyDispatchedShader(Desktop::focusState()->window(), args);
+    });
+    const auto shadeSpecific = g.HandleError([&](std::string args) {
+        size_t space = args.find(" ");
+        if (space == std::string::npos)
+            throw g.Efmt("Expected 2 Arguments: <WINDOW> <SHADER>");
+        g.Manager.ApplyDispatchedShader(g_pCompositor->getWindowByRegex(args.substr(0, space)), args.substr(space + 1));
+    });
+
+    HyprlandAPI::addDispatcherV2(g.Handle, "darkwindow:shade", shadeSpecific);
+    HyprlandAPI::addDispatcherV2(g.Handle, "darkwindow:shadeactive", shade);
+
+    // Keep these keywords because backwards compatibility :)
+    HyprlandAPI::addDispatcherV2(g.Handle, "shadeactivewindow", shade);
+    HyprlandAPI::addDispatcherV2(g.Handle, "shadewindow", shadeSpecific);
+    HyprlandAPI::addDispatcherV2(g.Handle, "invertactivewindow", [&](std::string args) { return shade("invert"); });
+    HyprlandAPI::addDispatcherV2(g.Handle, "invertwindow", [&](std::string args) { return shadeSpecific(args + " invert"); });
+
+
+    g.Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
+        g.Handle, "windowUpdateRules",
+        [&](void* self, SCallbackInfo&, std::any data) {
+            try
+            {
+                g.Manager.ApplyWindowRuleShader(std::any_cast<PHLWINDOW>(data));
+            }
+            catch (const std::exception& ex)
+            {
+                g.NotifyError(std::string("Failed to apply window rule shader: ") + ex.what());
+            }
+        }
+    ));
+
+    g.Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
+        g.Handle, "destroyWindow",
+        [&](void* self, SCallbackInfo&, std::any data) {
+            g.Manager.ForgetWindow(std::any_cast<PHLWINDOW>(data));
+        }
+    ));
+
     g.Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
         g.Handle, "configReloaded",
         [&](void* self, SCallbackInfo&, std::any data) {
@@ -62,54 +103,15 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
                 g.NotifyError(std::string("Failed to apply window rule shader: ") + ex.what());
             }
 
+#ifdef WATCH_SHADERS
             g_pConfigManager->updateWatcher();
+#endif
         }
     ));
-
-    g_pConfigManager->reload();
-
-    g.Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
-        g.Handle, "closeWindow",
-        [&](void* self, SCallbackInfo&, std::any data) {
-            g.Manager.ForgetWindow(std::any_cast<PHLWINDOW>(data));
-        }
-    ));
-    g.Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
-        g.Handle, "windowUpdateRules",
-        [&](void* self, SCallbackInfo&, std::any data) {
-            try
-            {
-                g.Manager.ApplyWindowRuleShader(std::any_cast<PHLWINDOW>(data));
-            }
-            catch (const std::exception& ex)
-            {
-                g.NotifyError(std::string("Failed to apply window rule shader: ") + ex.what());
-            }
-        }
-    ));
-
-    const auto shade = g.HandleError([&](std::string args) {
-        g.Manager.ApplyDispatchedShader(Desktop::focusState()->window(), args);
-    });
-    const auto shadeSpecific = g.HandleError([&](std::string args) {
-        size_t space = args.find(" ");
-        if (space == std::string::npos)
-            throw g.Efmt("Expected 2 Arguments: <WINDOW> <SHADER>");
-        g.Manager.ApplyDispatchedShader(g_pCompositor->getWindowByRegex(args.substr(0, space)), args.substr(space + 1));
-    });
-
-    HyprlandAPI::addDispatcherV2(g.Handle, "darkwindow:shade", shadeSpecific);
-    HyprlandAPI::addDispatcherV2(g.Handle, "darkwindow:shadeactive", shade);
-
-    // Keep these keywords because backwards compatibility :)
-    HyprlandAPI::addDispatcherV2(g.Handle, "shadeactivewindow", shade);
-    HyprlandAPI::addDispatcherV2(g.Handle, "shadewindow", shadeSpecific);
-    HyprlandAPI::addDispatcherV2(g.Handle, "invertactivewindow", [&](std::string args) { return shade("invert"); });
-    HyprlandAPI::addDispatcherV2(g.Handle, "invertwindow", [&](std::string args) { return shadeSpecific(args + " invert"); });
 
     return {
         "Hypr-DarkWindow",
-        "Allows you to set dark mode for only specific Windows",
+        "Allows you to modify the fragment shader of specific windows",
         "micha4w",
         "5.1.0"
     };

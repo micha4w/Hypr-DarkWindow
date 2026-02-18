@@ -58,27 +58,40 @@ HOOK_FUNCTION(, CHyprOpenGLImpl, getSurfaceShader,
     if (g.RenderState.Ignore || !window)
         return original(thisptr, features);
 
-    auto shader = g.Manager.GetOrCreateShaderForWindow(window, features, [&] (ShaderInstance* shaders) {
-        auto existing_it = thisptr->m_shaders->fragVariants.find(features);
-        SP<CShader> existingShader = existing_it != thisptr->m_shaders->fragVariants.end() ? existing_it->second : nullptr;
+    auto shaders = g.Manager.GetShaderForWindow(window);
+    if (!shaders)
+        return original(thisptr, features);
 
-        g.RenderState.Shader = shaders;
-        if (existingShader)
-            thisptr->m_shaders->fragVariants.erase(existing_it);
+    try
+    {
+        auto shader = shaders->Compiled->GetOrCreateVariant(features, [&] {
+            auto existing_it = thisptr->m_shaders->fragVariants.find(features);
+            SP<CShader> existingShader = existing_it != thisptr->m_shaders->fragVariants.end() ? existing_it->second : nullptr;
 
-        Hyprutils::Utils::CScopeGuard _([&] {
-            g.RenderState.Shader = {};
+            g.RenderState.Shader = shaders;
             if (existingShader)
-                thisptr->m_shaders->fragVariants[features] = std::move(existingShader);
-            else
-                thisptr->m_shaders->fragVariants.erase(features);
+                thisptr->m_shaders->fragVariants.erase(existing_it);
+
+            Hyprutils::Utils::CScopeGuard _([&] {
+                g.RenderState.Shader = {};
+                if (existingShader)
+                    thisptr->m_shaders->fragVariants[features] = std::move(existingShader);
+                else
+                    thisptr->m_shaders->fragVariants.erase(features);
+            });
+
+            return original(thisptr, features).lock();
         });
 
-        return original(thisptr, features).lock();
-    });
-
-    if (shader) return shader;
-    return original(thisptr, features);
+        shader.SetUniforms(shaders->Args, thisptr->m_renderData.pMonitor.lock(), window);
+        return shader.Shader;
+    }
+    catch (const std::exception& ex)
+    {
+        shaders->Compiled->FailedCompilation = true;
+        g.NotifyError(std::string("Failed to apply custom shader: ") + ex.what());
+        return original(thisptr, features);
+    }
 }
 
 HOOK_FUNCTION(, CShader, createProgram,

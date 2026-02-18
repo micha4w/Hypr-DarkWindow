@@ -9,41 +9,31 @@
 enum IntroducesTransparency : bool { No = false, Yes = true };
 using Uniforms = std::map<std::string, std::vector<float>>;
 
-struct ShaderDefinition
+
+struct ShaderVariant
 {
-    std::string ID;
+    SP<CShader> Shader;
 
-    // At least one of these must be set
-    std::string From;
-    std::string Path;
-    std::string Source;
+    std::map<std::string, GLint> UniformLocations;
 
-    Uniforms Args;
-    IntroducesTransparency Transparency;
-
-    static Uniforms ParseArgs(const std::string& args);
+    void PrimeUniforms(const Uniforms& args);
+    void SetUniforms(const Uniforms& args, PHLMONITOR monitor, PHLWINDOW window) noexcept;
 };
 
 struct CompiledShaders
 {
-    struct CustomShader
-    {
-        std::map<std::string, GLint> UniformLocations;
-        SP<CShader> Shader;
-        bool FailedUniforms = false;
-
-        void PrimeUniforms(const Uniforms& args);
-        void SetUniforms(const Uniforms& args) noexcept;
-    };
-
     std::string CustomSource;
-    std::map<uint8_t, CustomShader> FragVariants;
+    std::map<uint8_t, ShaderVariant> FragVariants;
     bool FailedCompilation = false;
+
+    std::vector<struct ShaderInstance*> Instances;
 
     ~CompiledShaders();
 
     std::string EditShader(const std::string& originalSource);
     void TestCompilation(const Uniforms& args);
+
+    ShaderVariant& GetOrCreateVariant(uint8_t features, std::function<SP<CShader>()> create);
 };
 
 struct ShaderInstance

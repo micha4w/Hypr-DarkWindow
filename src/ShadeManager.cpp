@@ -3,44 +3,186 @@
 #include <fstream>
 
 #include "State.h"
+#include "PredefinedShaders.h"
 
 
-ShaderInstance* ShadeManager::GetShaderForWindow(PHLWINDOW window)
+Uniforms ShaderDefinition::ParseArgs(const std::string& args)
 {
-    auto it = m_Windows.find(window);
-    return it != m_Windows.end() ? it->second.ActiveShader : nullptr;
+    Uniforms out;
+    std::stringstream ss(args);
+
+    ss >> std::ws;
+    while (!ss.eof())
+    {
+        std::string name;
+        std::getline(ss, name, '=');
+        name = Hyprutils::String::trim(name);
+        for (auto [i, c] : std::views::enumerate(name))
+        {
+            bool first = c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_';
+            bool other = c >= '0' && c <= '9';
+            bool special = c == '[' || c == ']' || c == '.';
+
+            if (!(first || ((other || special) && i != 0)))
+                throw g.Efmt("invalid shader uniform name '{}'", name);
+        }
+        ss >> std::ws;
+
+        std::vector<float> values;
+        if (ss.peek() == '[')
+        {
+            ss.get();
+            while (1)
+            {
+                std::string rem(ss.str().substr(ss.tellg()));
+
+                float next;
+                ss >> next;
+
+                if (ss.fail()) break;
+                values.push_back(next);
+
+                ss >> std::ws;
+                if (ss.peek() == ',')
+                {
+                    ss.get();
+                    ss >> std::ws;
+                }
+                if (ss.peek() == ']') {
+                    ss.get();
+                    break;
+                }
+
+                if (ss.eof()) throw g.Efmt("expected ']' not found");
+            }
+
+            if (values.size() < 1 || values.size() > 4)
+                throw g.Efmt("only support from 1 to 4 values");
+        }
+        else
+        {
+            float next;
+            ss >> next;
+            values.push_back(next);
+        }
+        if (ss.fail()) throw g.Efmt("expected a float");
+        ss >> std::ws;
+
+        out[name] = values;
+    }
+
+    return out;
 }
 
-SP<CShader> ShadeManager::GetOrCreateShaderForWindow(PHLWINDOW window, uint8_t features, std::function<SP<CShader>(ShaderInstance*)> create)
+ShaderInstance* ShadeManager::AddShader(ShaderDefinition def)
 {
-    auto shaders = g.Manager.GetShaderForWindow(window);
-    if (!shaders || shaders->Compiled->FailedCompilation)
-        return nullptr;
+    auto found = m_Shaders.find(def.ID);
+    if (found != m_Shaders.end()) return &found->second;
 
-    auto compiled_it = shaders->Compiled->FragVariants.find(features);
-    try
+    ShaderInstance shader{ .ID = def.ID };
+
+    if (def.Source != "")
+        shader.Compiled = SP(new CompiledShaders{ .CustomSource = def.Source });
+    else try
     {
-        if (compiled_it == shaders->Compiled->FragVariants.end())
+        if (def.From != "")
         {
-            auto newShader = create(shaders);
+            auto from = m_Shaders.find(def.From);
+            if (from == m_Shaders.end())
+                throw g.Efmt("Unknown .from shader {}", def.From);
 
-            if (newShader->program() == 0)
-                throw g.Efmt("Failed to compile shader variant, check logs for details");
-
-            compiled_it = shaders->Compiled->FragVariants.emplace(features, CompiledShaders::CustomShader{ Shader: newShader }).first;
-            compiled_it->second.PrimeUniforms(shaders->Args);
+            shader.Args = from->second.Args;
+            shader.Compiled = from->second.Compiled;
+            shader.Transparency = from->second.Transparency;
         }
 
-        compiled_it->second.SetUniforms(shaders->Args);
+        if (def.Path != "")
+        {
+            std::ifstream file(def.Path);
+            std::string source = std::string(std::istreambuf_iterator(file), {});
+
+            shader.Compiled = SP(new CompiledShaders{ .CustomSource = source });
+            shader.Compiled->TestCompilation(def.Args);
+        }
+
+        if (!shader.Compiled)
+            throw g.Efmt("Either .from or .path has to be set");
     }
     catch (const std::exception& ex)
     {
-        shaders->Compiled->FailedCompilation = true;
-        g.NotifyError(std::string("Failed to apply custom shader: ") + ex.what());
-        return nullptr;
+        throw g.Efmt("Failed to load shader {}: {}", def.ID, ex.what());
     }
 
-    return compiled_it->second.Shader;
+    def.Args.merge(shader.Args);
+    shader.Args = std::move(def.Args);
+    shader.Transparency = IntroducesTransparency{ shader.Transparency || def.Transparency };
+
+    for (auto& [_, variant] : shader.Compiled->FragVariants)
+        variant.PrimeUniforms(shader.Args);
+
+    auto* ptr = &(m_Shaders[def.ID] = std::move(shader));
+    ptr->Compiled->Instances.push_back(ptr);
+    return ptr;
+}
+
+ShaderInstance* ShadeManager::EnsureShader(const std::string& shader)
+{
+    if (shader == "")
+        return nullptr;
+
+    size_t space = shader.find(" ");
+    if (space == std::string::npos)
+    {
+        auto found = m_Shaders.find(shader);
+        if (found == m_Shaders.end())
+            throw g.Efmt("Unable to find shader {}", shader);
+
+        return &found->second;
+    }
+    else
+    {
+        auto from = Hyprutils::String::trim(shader.substr(0, space));
+        auto args = shader.substr(space + 1);
+        return AddShader(ShaderDefinition{
+            .ID = shader,
+            .From = from,
+            .Args = ShaderDefinition::ParseArgs(args),
+            });
+    }
+}
+
+void ShadeManager::LoadPredefinedShader(const std::string& name)
+{
+    static const auto add = [](ShadeManager* self, const auto& source) {
+        auto& [id, options] = source;
+        self->AddShader(ShaderDefinition{
+            .ID = id,
+            .Source = options.Source,
+            .Args = options.DefaultArgs,
+            .Transparency = options.Transparency,
+            });
+    };
+
+    if (name == "all")
+    {
+        for (const auto& source : WINDOW_SHADERS)
+            add(this, source);
+    }
+    else
+    {
+        auto source = WINDOW_SHADERS.find(name);
+        if (source == WINDOW_SHADERS.end())
+            throw g.Efmt("Predefined shader with name {} not found", name);
+
+        add(this, *source);
+    }
+}
+
+
+void ShadeManager::RecheckWindowRules()
+{
+    for (const auto& window : g_pCompositor->m_windows)
+        ApplyWindowRuleShader(window);
 }
 
 void ShadeManager::ApplyWindowRuleShader(PHLWINDOW window)
@@ -63,9 +205,9 @@ void ShadeManager::ApplyWindowRuleShader(PHLWINDOW window)
             it->second.RuleShader = EnsureShader(shader);
     }
     else
-        it = m_Windows.emplace(window, ShadeWindow{ .RuleShader = EnsureShader(shader) }).first;
+        it = m_Windows.emplace(window, ShadedWindow{ .RuleShader = EnsureShader(shader) }).first;
 
-    WindowShaderChanged(it);
+    windowShaderChanged(it);
 }
 
 
@@ -82,11 +224,9 @@ void ShadeManager::ApplyDispatchedShader(PHLWINDOW window, const std::string& sh
             it->second.DispatchShader = EnsureShader(shader);
     }
     else
-        it = m_Windows.emplace(window, ShadeWindow{ .DispatchShader = EnsureShader(shader) }).first;
+        it = m_Windows.emplace(window, ShadedWindow{ .DispatchShader = EnsureShader(shader) }).first;
 
-    // window->m_activeInactiveAlpha->setValue(0.5f);
-
-    WindowShaderChanged(it);
+    windowShaderChanged(it);
 }
 
 void ShadeManager::ForgetWindow(PHLWINDOW window)
@@ -94,130 +234,30 @@ void ShadeManager::ForgetWindow(PHLWINDOW window)
     m_Windows.erase(window);
 }
 
-void ShadeManager::RecheckWindowRules()
+ShaderInstance* ShadeManager::GetShaderForWindow(PHLWINDOW window)
 {
-    for (const auto& window : g_pCompositor->m_windows)
-        ApplyWindowRuleShader(window);
+    auto it = m_Windows.find(window);
+    return it != m_Windows.end() ? it->second.ActiveShader : nullptr;
 }
 
 
-void ShadeManager::LoadPredefinedShader(const std::string& name)
-{
-    static const auto add = [](ShadeManager* self, const auto& source) {
-        auto& [id, options] = source;
-        self->AddShader(ShaderDefinition{
-            .ID = id,
-            .Source = options.Source,
-            .Args = options.DefaultArgs,
-            .Transparency = options.Transparency,
-            });
-    };
+void ShadeManager::windowShaderChanged(decltype(m_Windows)::iterator it) {
+    auto& s = it->second;
 
-    if (name == "all")
+    s.ActiveShader = nullptr;
+    if (s.RuleShader && s.DispatchShader)
     {
-        for (const auto& source : g.WindowShaders)
-            add(this, source);
-    }
-    else
-    {
-        auto source = g.WindowShaders.find(name);
-        if (source == g.WindowShaders.end())
-            throw g.Efmt("Predefined shader with name {} not found", name);
-
-        add(this, *source);
-    }
-}
-
-ShaderInstance* ShadeManager::AddShader(ShaderDefinition def)
-{
-    auto found = m_Shaders.find(def.ID);
-    if (found != m_Shaders.end()) return found->second.get();
-
-    UP<ShaderInstance> shader(new ShaderInstance{ .ID = def.ID });
-
-    if (def.Source != "")
-        shader->Compiled = SP(new CompiledShaders{ .CustomSource = def.Source });
-    else try
-    {
-        if (def.From != "")
-        {
-            if (!m_Shaders.contains(def.From))
-                throw g.Efmt("Unknown .from shader", def.ID);
-
-            auto& from = m_Shaders[def.From];
-            shader->Args = from->Args;
-            shader->Compiled = from->Compiled;
-            shader->Transparency = from->Transparency;
-        }
-
-        if (def.Path != "")
-        {
-            std::ifstream file(def.Path);
-            std::string source = std::string(std::istreambuf_iterator(file), {});
-
-            shader->Compiled = SP(new CompiledShaders{ .CustomSource = source });
-            shader->Compiled->TestCompilation(def.Args);
-        }
-
-        if (!shader->Compiled)
-            throw g.Efmt("Either .from or .path has to be set");
-    }
-    catch (const std::exception& ex)
-    {
-        throw g.Efmt("Failed to load shader {}: {}", def.ID, ex.what());
-    }
-
-    def.Args.merge(shader->Args);
-    def.Args.swap(shader->Args);
-    shader->Transparency = IntroducesTransparency{ shader->Transparency || def.Transparency };
-
-    auto ret = shader.get();
-    m_Shaders[def.ID] = std::move(shader);
-    return ret;
-}
-
-ShaderInstance* ShadeManager::EnsureShader(const std::string& shader)
-{
-    if (shader == "")
-        return nullptr;
-
-    size_t space = shader.find(" ");
-    if (space == std::string::npos)
-    {
-        auto found = m_Shaders.find(shader);
-        if (found == m_Shaders.end())
-            throw g.Efmt("Unable to find shader {}", shader);
-
-        return found->second.get();
-    }
-    else
-    {
-        auto from = Hyprutils::String::trim(shader.substr(0, space));
-        auto args = shader.substr(space + 1);
-        return AddShader(ShaderDefinition{
-            .ID = shader,
-            .From = from,
-            .Args = ShaderDefinition::ParseArgs(args),
-            });
-    }
-}
-
-    void ShadeManager::WindowShaderChanged(decltype(m_Windows)::iterator it) {
-        auto& s = it->second;
-
-        s.ActiveShader = nullptr;
-        if (s.RuleShader && s.DispatchShader)
-        {
-            if (s.RuleShader->ID != s.DispatchShader->ID)
-                s.ActiveShader = s.DispatchShader;
-        }
-        else if (s.DispatchShader)
+        if (s.RuleShader->ID != s.DispatchShader->ID)
             s.ActiveShader = s.DispatchShader;
-        else if (s.RuleShader)
-            s.ActiveShader = s.RuleShader;
-
-        g_pHyprRenderer->damageWindow(it->first);
-
-        if (!s.ActiveShader)
-            m_Windows.erase(it);
     }
+    else if (s.DispatchShader)
+        s.ActiveShader = s.DispatchShader;
+    else if (s.RuleShader)
+        s.ActiveShader = s.RuleShader;
+
+    g_pHyprRenderer->damageWindow(it->first);
+
+    if (!s.ActiveShader)
+        m_Windows.erase(it);
+}
+
