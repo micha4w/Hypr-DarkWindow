@@ -245,13 +245,7 @@ void ShadeManager::PreRenderMonitor(PHLMONITOR monitor)
 {
     for (auto& [window, config] : m_Windows)
     {
-        bool usesTime = false;
-        for (auto& [_, variant] : config.ActiveShader->Compiled->FragVariants)
-        {
-            if (variant.TimeLocation != -1) usesTime = true;
-        }
-
-        if (usesTime
+        if (config.ActiveShader->Compiled->NeedsConstantDamage
             && g_pHyprRenderer->shouldRenderWindow(window, monitor))
         {
             // Code stolen from g_pHyprRenderer->damageWindow
@@ -260,6 +254,15 @@ void ShadeManager::PreRenderMonitor(PHLMONITOR monitor)
             fixedDamageBox.scale(monitor->m_scale);
             monitor->addDamage(fixedDamageBox);
         }
+    }
+}
+
+void ShadeManager::MouseMove()
+{
+    for (auto& [window, config] : m_Windows)
+    {
+        if (config.ActiveShader->Compiled->NeedsMouseMoveDamage)
+            g_pHyprRenderer->damageWindow(window);
     }
 }
 

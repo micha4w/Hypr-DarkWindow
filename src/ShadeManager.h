@@ -31,6 +31,7 @@ public:
     ShaderInstance* GetShaderForWindow(PHLWINDOW window);
 
     void PreRenderMonitor(PHLMONITOR monitor);
+    void MouseMove();
 
 private:
     std::map<std::string, ShaderInstance> m_Shaders;

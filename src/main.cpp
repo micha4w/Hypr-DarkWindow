@@ -59,6 +59,13 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
     ));
 
     g.Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
+        g.Handle, "mouseMove", 
+        [&](void* self, SCallbackInfo&, std::any data) {
+            g.Manager.MouseMove();
+        }
+    ));
+
+    g.Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
         g.Handle, "configReloaded",
         [&](void* self, SCallbackInfo&, std::any data) {
             g.Manager = ShadeManager();

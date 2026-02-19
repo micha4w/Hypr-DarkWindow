@@ -6,10 +6,89 @@
 
 #include "State.h"
 
+std::string SpecialVariables::EditSource(const std::string& originalSource, std::string pixelGetter)
+{
+    static const auto replaceIdentifier = [](std::string& str, const std::string_view& from, const std::string_view& to) {
+        size_t pos = 0;
+        while ((pos = str.find(from, pos)) != std::string::npos) {
+            static const auto isIdentifierChar = [](char c) { return std::isalnum(c) || c == '_'; };
+
+            bool borderStart = pos == 0 || !isIdentifierChar(str[pos - 1]);
+            bool borderEnd = pos + from.size() >= str.size() || !isIdentifierChar(str[pos + from.size()]);
+
+            if (borderStart && borderEnd) {
+                str.replace(pos, from.size(), to);
+                pos += to.size();
+            }
+            else {
+                pos += from.size();
+            }
+        }
+    };
+
+    replaceIdentifier(pixelGetter, "v_TexCoord", "texCoord");
+
+    std::string source = R"glsl(
+uniform float x_Time;
+uniform vec2  x_WindowSize;
+uniform vec2  x_CursorPos;
+uniform float x_MonitorScale;
+
+vec4 x_Texture(vec2 texCoord) {
+    return )glsl" + pixelGetter + R"glsl(;
+}
+
+vec4 x_TextureOffset(vec2 pixelOffset) {
+    return x_Texture(x_TexCoord - pixelOffset / x_WindowSize);
+}
+        )glsl" + originalSource;
+
+    replaceIdentifier(source, "x_PixelPos", "(x_TexCoord * x_WindowSize)");
+
+    // So we can provide API stability even if Hyprland changes its variable names
+    replaceIdentifier(source, "x_Tex", "tex");
+    replaceIdentifier(source, "x_TexCoord", "v_texcoord");
+
+    return source;
+}
+
+void SpecialVariables::PrimeUniforms(const SP<CShader>& shader)
+{
+    UniformLocations[(uint8_t)Time] = glGetUniformLocation(shader->program(), "x_Time");
+    UniformLocations[(uint8_t)WindowSize] = glGetUniformLocation(shader->program(), "x_WindowSize");
+    UniformLocations[(uint8_t)CursorPos] = glGetUniformLocation(shader->program(), "x_CursorPos");
+    UniformLocations[(uint8_t)MonitorScale] = glGetUniformLocation(shader->program(), "x_MonitorScale");
+}
+
+void SpecialVariables::SetUniforms(PHLMONITOR monitor, PHLWINDOW window)
+{
+    GLint loc;
+    if (loc = UniformLocations[(size_t)Time]; loc != -1)
+    {
+        static auto startTime = Time::steadyNow();
+        float seconds = std::chrono::duration_cast<std::chrono::duration<float>>(
+            Time::steadyNow() - startTime
+        ).count();
+        glUniform1f(loc, seconds);
+    }
+    if (loc = UniformLocations[(size_t)WindowSize]; loc != -1)
+    {
+        auto size = window->m_realSize->value();
+        glUniform2f(loc, size.x, size.y);
+    }
+    if (loc = UniformLocations[(size_t)CursorPos]; loc != -1)
+    {
+        Vector2D pos = g_pPointerManager->position() - window->m_realPosition->value();
+        glUniform2f(loc, (float)pos.x, (float)pos.y);
+    }
+    if (loc = UniformLocations[(size_t)MonitorScale]; loc != -1)
+        glUniform1f(loc, monitor->m_scale);
+}
+
 
 void ShaderVariant::PrimeUniforms(const Uniforms& args)
 {
-    TimeLocation = glGetUniformLocation(Shader->program(), "time");
+    Specials.PrimeUniforms(Shader);
 
     for (auto& [name, _] : args) {
         if (UniformLocations.contains(name))
@@ -29,15 +108,7 @@ void ShaderVariant::SetUniforms(const Uniforms& args, PHLMONITOR monitor, PHLWIN
 
     glUseProgram(Shader->program());
 
-    if (TimeLocation != -1)
-    {
-        static auto startTime = std::chrono::steady_clock::now();
-        float currentTime = std::chrono::duration_cast<std::chrono::duration<float>>(
-            std::chrono::steady_clock::now() - startTime
-        ).count();
-
-        glUniform1f(TimeLocation, currentTime);
-    }
+    Specials.SetUniforms(monitor, window);
 
     for (auto& [name, values] : args) {
         GLint loc = UniformLocations[name];
@@ -74,11 +145,14 @@ std::string CompiledShaders::EditShader(const std::string& originalSource)
 
     source.insert(defEnd + 1, "\n    windowShader(pixColor);");
 
+    std::string pixelGetter = source.substr(pixColorDef + 15, defEnd - (pixColorDef + 15));
+    std::string customSource = SpecialVariables::EditSource(CustomSource, pixelGetter);
+
     size_t main = source.find("void main(");
     if (main == std::string::npos)
         throw g.Efmt("Frag source does not contain an occurence of 'void main('");
 
-    source.insert(main, CustomSource + "\n\n");
+    source.insert(main, customSource + "\n\n");
     return source;
 }
 
@@ -127,6 +201,12 @@ ShaderVariant& CompiledShaders::GetOrCreateVariant(uint8_t features, std::functi
 
     for (auto* instance : Instances)
         variant.PrimeUniforms(instance->Args);
+
+    if (variant.Specials.UniformLocations[(size_t)SpecialVariables::Time] != -1)
+        NeedsConstantDamage = true;
+
+    if (variant.Specials.UniformLocations[(size_t)SpecialVariables::CursorPos] != -1)
+        NeedsMouseMoveDamage = true;
 
     return variant;
 }

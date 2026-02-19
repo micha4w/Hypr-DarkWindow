@@ -81,6 +81,23 @@ The custom shader code will then be injected into the fragment shader used by hy
 You can see examples of shaders by looking at the [predefined shaders](./src/PredefinedShaders.cpp).
 Feel free to make a pull request to add your own shaders!
 
+#### Special Variables
+
+You can use these variables anywhere in your shader code.
+Do not add the uniform declarations.
+This plugin will automatically detect the used variables and set them at each render.
+
+| **Name**            | **Type**                        | **Description**                                                                                                                                      |
+| ------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **x_Time**          | `float`                         | Current time in seconds<br>_using this will cause the entire window to rerender every frame_                                                         |
+| **x_PixelPos**      | `vec2`                          | Position of the current pixel in window space<br>(top left of the window is [0,0], monitor scaling already applied)                                  |
+| **x_CursorPos**     | `vec2`                          | Position of the cursor, same coordinate space as `x_PixelPos`<br>_using this will cause the entire window to rerender every time the mouse is moved_ |
+| **x_WindowSize**    | `vec2`                          | Size of the current window, same scaling as `x_PixelPos`                                                                                             |
+| **x_MonitorScale**  | `float`                         | Scaling of the monitor as seen in `hyprctl monitors`                                                                                                 |
+| **x_Texture**       | `fn (vec2 texCoord) -> vec4`    | Gets the color of a pixel<br>(the difference of using this vs. using `texture(x_Tex, texCoord)` is that this function handles opaque windows)        |
+| **x_TextureOffset** | `fn (vec2 pixelOffset) -> vec4` | Gets the color at a pixel offset to the currently drawn pixel                                                                                        |
+| **x_Tex**           | `sampler2D`                     | The texture that gets sampled from                                                                                                                   |
+| **x_TexCoord**      | `vec2`                          | The coordinate that was used to get the current pixel color                                                                                          |
 
 ## Installation
 
