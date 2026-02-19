@@ -190,24 +190,25 @@ void ShadeManager::ApplyWindowRuleShader(PHLWINDOW window)
     // for some reason, some events (currently `activeWindow`) sometimes pass a null pointer
     if (!window) return;
 
-    std::string shader;
+    std::optional<std::string> newShader, currentShader;
     auto& props = window->m_ruleApplicator->m_otherProps.props;
 
     if (auto it = props.find(g.RuleShade); it != props.end())
-        shader = it->second->effect;
+        newShader = it->second->effect;
 
     auto it = m_Windows.find(window);
-    if (it != m_Windows.end())
-    {
-        if (it->second.RuleShader && it->second.RuleShader->ID == shader)
-            it->second.RuleShader = nullptr;
-        else
-            it->second.RuleShader = EnsureShader(shader);
-    }
-    else
-        it = m_Windows.emplace(window, ShadedWindow{ .RuleShader = EnsureShader(shader) }).first;
+    if (it != m_Windows.end() && it->second.RuleShader)
+        currentShader = it->second.RuleShader->ID;
 
-    windowShaderChanged(it);
+    if (newShader != currentShader)
+    {
+        if (it == m_Windows.end() && newShader)
+            it = m_Windows.emplace(window, ShadedWindow{ .RuleShader = EnsureShader(*newShader) }).first;
+        else
+            it->second.RuleShader = newShader ? EnsureShader(*newShader) : nullptr;
+
+        windowShaderChanged(it);
+    }
 }
 
 

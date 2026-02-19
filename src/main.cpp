@@ -28,43 +28,6 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
     HyprlandAPI::addDispatcherV2(g.Handle, "invertactivewindow", [&](std::string args) { return shade("invert"); });
     HyprlandAPI::addDispatcherV2(g.Handle, "invertwindow", [&](std::string args) { return shadeSpecific(args + " invert"); });
 
-
-    g.Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
-        g.Handle, "windowUpdateRules",
-        [&](void* self, SCallbackInfo&, std::any data) {
-            try
-            {
-                g.Manager.ApplyWindowRuleShader(std::any_cast<PHLWINDOW>(data));
-            }
-            catch (const std::exception& ex)
-            {
-                g.NotifyError(std::string("Failed to apply window rule shader: ") + ex.what());
-            }
-        }
-    ));
-
-    g.Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
-        g.Handle, "destroyWindow",
-        [&](void* self, SCallbackInfo&, std::any data) {
-            g.Manager.ForgetWindow(std::any_cast<PHLWINDOW>(data));
-        }
-    ));
-
-    g.Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
-        g.Handle, "preRender",
-        [&](void* self, SCallbackInfo&, std::any data) {
-            auto monitor = std::any_cast<PHLMONITOR>(data);
-            g.Manager.PreRenderMonitor(monitor);
-        }
-    ));
-
-    g.Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
-        g.Handle, "mouseMove", 
-        [&](void* self, SCallbackInfo&, std::any data) {
-            g.Manager.MouseMove();
-        }
-    ));
-
     g.Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
         g.Handle, "configReloaded",
         [&](void* self, SCallbackInfo&, std::any data) {
@@ -121,6 +84,45 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 #ifdef WATCH_SHADERS
             g_pConfigManager->updateWatcher();
 #endif
+        }
+    ));
+
+    g_pConfigManager->reload();
+
+
+    g.Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
+        g.Handle, "windowUpdateRules",
+        [&](void* self, SCallbackInfo&, std::any data) {
+            try
+            {
+                g.Manager.ApplyWindowRuleShader(std::any_cast<PHLWINDOW>(data));
+            }
+            catch (const std::exception& ex)
+            {
+                g.NotifyError(std::string("Failed to apply window rule shader: ") + ex.what());
+            }
+        }
+    ));
+
+    g.Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
+        g.Handle, "destroyWindow",
+        [&](void* self, SCallbackInfo&, std::any data) {
+            g.Manager.ForgetWindow(std::any_cast<PHLWINDOW>(data));
+        }
+    ));
+
+    g.Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
+        g.Handle, "preRender",
+        [&](void* self, SCallbackInfo&, std::any data) {
+            auto monitor = std::any_cast<PHLMONITOR>(data);
+            g.Manager.PreRenderMonitor(monitor);
+        }
+    ));
+
+    g.Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
+        g.Handle, "mouseMove", 
+        [&](void* self, SCallbackInfo&, std::any data) {
+            g.Manager.MouseMove();
         }
     ));
 
