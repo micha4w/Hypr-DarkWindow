@@ -15,6 +15,7 @@ struct ShaderVariant
     SP<CShader> Shader;
 
     std::map<std::string, GLint> UniformLocations;
+    GLint TimeLocation;
 
     void PrimeUniforms(const Uniforms& args);
     void SetUniforms(const Uniforms& args, PHLMONITOR monitor, PHLWINDOW window) noexcept;

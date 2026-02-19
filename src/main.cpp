@@ -51,6 +51,14 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
     ));
 
     g.Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
+        g.Handle, "preRender",
+        [&](void* self, SCallbackInfo&, std::any data) {
+            auto monitor = std::any_cast<PHLMONITOR>(data);
+            g.Manager.PreRenderMonitor(monitor);
+        }
+    ));
+
+    g.Callbacks.push_back(HyprlandAPI::registerCallbackDynamic(
         g.Handle, "configReloaded",
         [&](void* self, SCallbackInfo&, std::any data) {
             g.Manager = ShadeManager();

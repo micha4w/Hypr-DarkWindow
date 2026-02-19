@@ -241,6 +241,29 @@ ShaderInstance* ShadeManager::GetShaderForWindow(PHLWINDOW window)
 }
 
 
+void ShadeManager::PreRenderMonitor(PHLMONITOR monitor)
+{
+    for (auto& [window, config] : m_Windows)
+    {
+        bool usesTime = false;
+        for (auto& [_, variant] : config.ActiveShader->Compiled->FragVariants)
+        {
+            if (variant.TimeLocation != -1) usesTime = true;
+        }
+
+        if (usesTime
+            && g_pHyprRenderer->shouldRenderWindow(window, monitor))
+        {
+            // Code stolen from g_pHyprRenderer->damageWindow
+            auto windowBox = window->getFullWindowBoundingBox();
+            CBox fixedDamageBox = { windowBox.pos() - monitor->m_position, windowBox.size() };
+            fixedDamageBox.scale(monitor->m_scale);
+            monitor->addDamage(fixedDamageBox);
+        }
+    }
+}
+
+
 void ShadeManager::windowShaderChanged(decltype(m_Windows)::iterator it) {
     auto& s = it->second;
 

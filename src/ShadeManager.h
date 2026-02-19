@@ -30,6 +30,8 @@ public:
     void ForgetWindow(PHLWINDOW window);
     ShaderInstance* GetShaderForWindow(PHLWINDOW window);
 
+    void PreRenderMonitor(PHLMONITOR monitor);
+
 private:
     std::map<std::string, ShaderInstance> m_Shaders;
 

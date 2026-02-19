@@ -9,6 +9,8 @@
 
 void ShaderVariant::PrimeUniforms(const Uniforms& args)
 {
+    TimeLocation = glGetUniformLocation(Shader->program(), "time");
+
     for (auto& [name, _] : args) {
         if (UniformLocations.contains(name))
             continue;
@@ -26,6 +28,17 @@ void ShaderVariant::SetUniforms(const Uniforms& args, PHLMONITOR monitor, PHLWIN
     glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
 
     glUseProgram(Shader->program());
+
+    if (TimeLocation != -1)
+    {
+        static auto startTime = std::chrono::steady_clock::now();
+        float currentTime = std::chrono::duration_cast<std::chrono::duration<float>>(
+            std::chrono::steady_clock::now() - startTime
+        ).count();
+
+        glUniform1f(TimeLocation, currentTime);
+    }
+
     for (auto& [name, values] : args) {
         GLint loc = UniformLocations[name];
         switch (values.size()) {
