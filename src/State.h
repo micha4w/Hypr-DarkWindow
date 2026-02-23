@@ -20,6 +20,7 @@
 #undef m_failedPluginConfigValues
 
 #include <hyprland/src/plugins/PluginAPI.hpp>
+#include <hyprland/src/event/EventBus.hpp>
 
 #include <hyprland/src/Compositor.hpp>
 #include <hyprland/src/desktop/DesktopTypes.hpp>
@@ -52,7 +53,7 @@ struct State {
     ShadeManager Manager;
     WindowRuleEffect RuleShade;
 
-    std::vector<SP<HOOK_CALLBACK_FN>> Callbacks;
+    std::vector<CHyprSignalListener> Listeners;
 
 #ifdef WATCH_SHADERS
     std::vector<std::string> additionalWatchPaths;
