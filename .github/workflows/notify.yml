@@ -8,20 +8,20 @@ on:
     branches:
       - main
   schedule:
-    - cron: "0 3 * * *"
+  - cron: "0 3 * * *"
   workflow_dispatch: {}
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    container:
-      image: duckonaut/hyprland-arch:latest
     steps:
-    - name: Install dependencies
-      run: |
-        sudo -u user sh -c "paru -Syu --noconfirm aquamarine-git hyprland-git hyprutils-git hyprwayland-scanner-git"
-    - name: Checkout current repository
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Build current repository
-      run: make all
+      - name: Install Nix
+        uses: cachix/install-nix-action@v26
+
+      - name: Update
+        run: nix flake update
+
+      - name: Build
+        run: nix build --extra-trusted-substituters "https://hyprland.cachix.org" -L
