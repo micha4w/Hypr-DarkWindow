@@ -19,13 +19,9 @@ jobs:
 
       - name: Install Nix
         uses: cachix/install-nix-action@v26
-        with:
-          extra_nix_config: |
-            extra-trusted-substituters = https://hyprland.cachix.org
-            extra-trusted-public-keys = hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc=
 
       - name: Update
         run: nix flake update
 
       - name: Build
-        run: nix build -L
+        run: nix build --print-build-logs --extra-trusted-substituters https://hyprland.cachix.org --extra-trusted-public-keys hyprland.cachix.org-1:a7pgxzMz7+chwVL3/pzj6jIBMioiJM7ypFP8PwtkuGc=
