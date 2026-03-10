@@ -11,6 +11,8 @@ OBJS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.o, $(SRCS))
 DEPS = $(patsubst $(SRC_DIR)/%.cpp, $(OBJ_DIR)/%.d, $(SRCS))
 
 INCLUDES = $(shell pkg-config --cflags pixman-1 libdrm hyprland hyprlang)
+INCLUDES += $(addsuffix /src/,$(shell pkg-config --cflags hyprland))
+
 
 TARGET = $(OUT_DIR)/hypr-darkwindow.so
 
