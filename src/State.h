@@ -74,7 +74,7 @@ struct State {
 
     struct {
         bool Ignore = true;
-        std::optional<ShaderInstance*> Shader;
+        WP<ITexture> BlurredBG;
     } RenderState;
 
     struct Hook {

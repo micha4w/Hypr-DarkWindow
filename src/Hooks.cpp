@@ -36,76 +36,59 @@ HOOK_FUNCTION(, CRenderPass, render,
     return original(thisptr, damage_);
 }
 
-HOOK_FUNCTION(, CHyprOpenGLImpl, renderTextureInternal,
-    void, (CHyprOpenGLImpl* thisptr, SP<CTexture> tex, const CBox& box, const CHyprOpenGLImpl::STextureRenderData& data))
+HOOK_FUNCTION(, CHyprOpenGLImpl, renderTextureWithBlurInternal,
+    void, (CHyprOpenGLImpl* thisptr, SP<ITexture> tex, const CBox& box, const CHyprOpenGLImpl::STextureRenderData& data))
 {
-    g.RenderState.Ignore = true;
-    if (!(tex == thisptr->m_renderData.pCurrentMonData->blurFB.getTexture()
-        || tex == thisptr->m_renderData.pCurrentMonData->mirrorFB.getTexture()
-        || tex == thisptr->m_renderData.pCurrentMonData->mirrorSwapFB.getTexture()))
-    {
-        // so the blurred texture does not get shaded
-        g.RenderState.Ignore = false;
-    }
+    g.RenderState.BlurredBG = data.blurredBG;
     original(thisptr, tex, box, data);
+    g.RenderState.BlurredBG.reset();
+}
+
+HOOK_FUNCTION(, CHyprOpenGLImpl, renderTextureInternal,
+    void, (CHyprOpenGLImpl* thisptr, SP<ITexture> tex, const CBox& box, const CHyprOpenGLImpl::STextureRenderData& data))
+{
+    // so the blurred background does not get shaded
+    g.RenderState.Ignore = g.RenderState.BlurredBG == tex;
+    original(thisptr, tex, box, data);
+    g.RenderState.Ignore = true;
 }
 
 
-HOOK_FUNCTION(, CHyprOpenGLImpl, getSurfaceShader,
-    WP<CShader>, (CHyprOpenGLImpl* thisptr, uint8_t features))
+HOOK_FUNCTION(, CHyprOpenGLImpl, getShaderVariant,
+    WP<CShader>, (CHyprOpenGLImpl* thisptr, Render::ePreparedFragmentShader frag, Render::ShaderFeatureFlags features))
 {
-    auto window = thisptr->m_renderData.currentWindow.lock();
-    if (g.RenderState.Ignore || !window)
-        return original(thisptr, features);
+    if (g.RenderState.Ignore || frag != Render::SH_FRAG_SURFACE)
+        return original(thisptr, frag, features);
+
+    auto window = g_pHyprRenderer->renderData().currentWindow.lock();
+    if (!window)
+        return original(thisptr, frag, features);
 
     auto shaders = g.Manager.GetShaderForWindow(window);
     if (!shaders)
-        return original(thisptr, features);
+        return original(thisptr, frag, features);
 
     try
     {
+        auto& variants = thisptr->m_shaders->fragVariants[frag];
         auto shader = shaders->Compiled->GetOrCreateVariant(features, [&] {
-            auto existing_it = thisptr->m_shaders->fragVariants.find(features);
-            SP<CShader> existingShader = existing_it != thisptr->m_shaders->fragVariants.end() ? existing_it->second : nullptr;
+            std::string fragSrc = Render::g_pShaderLoader->getVariantSource(frag, features);
+            std::string modifiedFragSrc = shaders->Compiled->EditShader(fragSrc);
 
-            g.RenderState.Shader = shaders;
-            if (existingShader)
-                thisptr->m_shaders->fragVariants.erase(existing_it);
-
-            Hyprutils::Utils::CScopeGuard _([&] {
-                g.RenderState.Shader = {};
-                if (existingShader)
-                    thisptr->m_shaders->fragVariants[features] = std::move(existingShader);
-                else
-                    thisptr->m_shaders->fragVariants.erase(features);
-            });
-
-            return original(thisptr, features).lock();
+            auto newShader = makeShared<CShader>();
+            newShader->createProgram(thisptr->m_shaders->TEXVERTSRC, modifiedFragSrc, true, true);
+            return newShader;
         });
 
-        shader.SetUniforms(shaders->Args, thisptr->m_renderData.pMonitor.lock(), window);
+        shader.SetUniforms(shaders->Args, g_pHyprRenderer->renderData().pMonitor.lock(), window);
         return shader.Shader;
     }
     catch (const std::exception& ex)
     {
         shaders->Compiled->FailedCompilation = true;
         g.NotifyError(std::string("Failed to apply custom shader: ") + ex.what());
-        return original(thisptr, features);
+        return original(thisptr, frag, features);
     }
-}
-
-HOOK_FUNCTION(, CShader, createProgram,
-    bool, (CShader* thisptr, const std::string& vert, const std::string& frag, bool dynamic, bool silent))
-{
-    if (!g.RenderState.Shader)
-        return original(thisptr, vert, frag, dynamic, silent);
-
-    std::string modifiedFrag = (*g.RenderState.Shader)->Compiled->EditShader(frag);
-    bool success = original(thisptr, vert, modifiedFrag, dynamic, silent);
-    if (!success)
-        Log::logger->log(Log::ERR, "Failed fragment source: {}", modifiedFrag);
-
-    return true;
 }
 
 #ifdef WATCH_SHADERS
