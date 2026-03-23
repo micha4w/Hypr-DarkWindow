@@ -1,6 +1,9 @@
 #pragma once
 
 #include <vector>
+#include <sstream>
+#include <any>
+#include <optional>
 
 #include <hyprutils/string/ConstVarList.hpp>
 #include <hyprutils/utils/ScopeGuard.hpp>
