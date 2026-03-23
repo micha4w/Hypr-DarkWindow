@@ -7,17 +7,13 @@
 #include <hyprutils/string/String.hpp>
 
 // All hyprland includes are in this file so the private overwriting works correctly
+#define private public
 #include <hyprland/src/render/pass/PassElement.hpp>
 #include <hyprland/src/helpers/time/Time.hpp>
 
-#define private public
 #include <hyprland/src/render/pass/SurfacePassElement.hpp>
 #include <hyprland/src/render/pass/Pass.hpp>
-#undef private
-
-#define m_failedPluginConfigValues    m_failedPluginConfigValues; friend struct State;
-#include <hyprland/src/config/ConfigManager.hpp>
-#undef m_failedPluginConfigValues
+#include <hyprland/src/config/legacy/ConfigManager.hpp>
 
 #include <hyprland/src/plugins/PluginAPI.hpp>
 #include <hyprland/src/event/EventBus.hpp>
@@ -29,6 +25,7 @@
 #include <hyprland/src/helpers/time/Time.hpp>
 
 #include <hyprland/src/render/Renderer.hpp>
+#undef private
 
 #include "ShadeManager.h"
 
@@ -119,11 +116,11 @@ struct State {
 
     void AddConfigValues()
     {
-        g_pConfigManager->m_config->addSpecialCategory(USER_SHADER_CATEGORY, { .key = "id", });
-        g_pConfigManager->m_config->addSpecialConfigValue(USER_SHADER_CATEGORY, "from", "");
-        g_pConfigManager->m_config->addSpecialConfigValue(USER_SHADER_CATEGORY, "path", "");
-        g_pConfigManager->m_config->addSpecialConfigValue(USER_SHADER_CATEGORY, "args", "");
-        g_pConfigManager->m_config->addSpecialConfigValue(USER_SHADER_CATEGORY, "introduces_transparency", Hyprlang::INT{ 0 });
+        Config::Legacy::mgr()->m_config->addSpecialCategory(USER_SHADER_CATEGORY, { .key = "id", });
+        Config::Legacy::mgr()->m_config->addSpecialConfigValue(USER_SHADER_CATEGORY, "from", "");
+        Config::Legacy::mgr()->m_config->addSpecialConfigValue(USER_SHADER_CATEGORY, "path", "");
+        Config::Legacy::mgr()->m_config->addSpecialConfigValue(USER_SHADER_CATEGORY, "args", "");
+        Config::Legacy::mgr()->m_config->addSpecialConfigValue(USER_SHADER_CATEGORY, "introduces_transparency", Hyprlang::INT{ 0 });
 
         HyprlandAPI::addConfigValue(Handle, LOAD_SHADERS_KEY, Hyprlang::STRING("all"));
 
@@ -141,17 +138,17 @@ struct State {
     {
         std::vector<UserShader> shaders;
 
-        auto ids = g_pConfigManager->m_config->listKeysForSpecialCategory(USER_SHADER_CATEGORY);
+        auto ids = Config::Legacy::mgr()->m_config->listKeysForSpecialCategory(USER_SHADER_CATEGORY);
         for (auto& id : std::set<std::string>(ids.begin(), ids.end()))
         {
             auto from = std::any_cast<Hyprlang::STRING>(
-                g_pConfigManager->m_config->getSpecialConfigValue(USER_SHADER_CATEGORY, "from", id.c_str()));
+                Config::Legacy::mgr()->m_config->getSpecialConfigValue(USER_SHADER_CATEGORY, "from", id.c_str()));
             auto path = std::any_cast<Hyprlang::STRING>(
-                g_pConfigManager->m_config->getSpecialConfigValue(USER_SHADER_CATEGORY, "path", id.c_str()));
+                Config::Legacy::mgr()->m_config->getSpecialConfigValue(USER_SHADER_CATEGORY, "path", id.c_str()));
             auto args = std::any_cast<Hyprlang::STRING>(
-                g_pConfigManager->m_config->getSpecialConfigValue(USER_SHADER_CATEGORY, "args", id.c_str()));
+                Config::Legacy::mgr()->m_config->getSpecialConfigValue(USER_SHADER_CATEGORY, "args", id.c_str()));
             auto transparent = std::any_cast<Hyprlang::INT>(
-                g_pConfigManager->m_config->getSpecialConfigValue(USER_SHADER_CATEGORY, "introduces_transparency", id.c_str()));
+                Config::Legacy::mgr()->m_config->getSpecialConfigValue(USER_SHADER_CATEGORY, "introduces_transparency", id.c_str()));
 
             shaders.push_back(UserShader{
                 .Id = id,
@@ -166,11 +163,11 @@ struct State {
     }
 
     void RemoveConfigValues() {
-        g_pConfigManager->m_config->removeSpecialConfigValue(USER_SHADER_CATEGORY, "from");
-        g_pConfigManager->m_config->removeSpecialConfigValue(USER_SHADER_CATEGORY, "path");
-        g_pConfigManager->m_config->removeSpecialConfigValue(USER_SHADER_CATEGORY, "args");
-        g_pConfigManager->m_config->removeSpecialConfigValue(USER_SHADER_CATEGORY, "introduces_transparency");
-        g_pConfigManager->m_config->removeSpecialCategory(USER_SHADER_CATEGORY);
+        Config::Legacy::mgr()->m_config->removeSpecialConfigValue(USER_SHADER_CATEGORY, "from");
+        Config::Legacy::mgr()->m_config->removeSpecialConfigValue(USER_SHADER_CATEGORY, "path");
+        Config::Legacy::mgr()->m_config->removeSpecialConfigValue(USER_SHADER_CATEGORY, "args");
+        Config::Legacy::mgr()->m_config->removeSpecialConfigValue(USER_SHADER_CATEGORY, "introduces_transparency");
+        Config::Legacy::mgr()->m_config->removeSpecialCategory(USER_SHADER_CATEGORY);
 
         Desktop::Rule::windowEffects()->unregisterEffect(RuleShade);
     }

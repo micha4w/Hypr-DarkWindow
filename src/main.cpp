@@ -80,11 +80,11 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         }
 
 #ifdef WATCH_SHADERS
-        g_pConfigManager->updateWatcher();
+        Config::mgr()->updateWatcher();
 #endif
     }));
 
-    g_pConfigManager->reload();
+    Config::mgr()->reload();
 
 
     g.Listeners.push_back(Event::bus()->m_events.window.updateRules.listen([&](PHLWINDOW window) {
