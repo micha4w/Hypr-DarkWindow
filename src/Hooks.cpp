@@ -11,8 +11,8 @@ HOOK_FUNCTION(Desktop::View::, CWindow, opaque,
     return original(thisptr);
 }
 
-HOOK_FUNCTION(, CRenderPass, render,
-    CRegion, (CRenderPass* thisptr, const CRegion& damage_))
+HOOK_FUNCTION(Render::, CRenderPass, render,
+    CRegion, (Render::CRenderPass* thisptr, const CRegion& damage_))
 {
     for (auto& elData : thisptr->m_passElements)
     {
@@ -36,16 +36,16 @@ HOOK_FUNCTION(, CRenderPass, render,
     return original(thisptr, damage_);
 }
 
-HOOK_FUNCTION(, CHyprOpenGLImpl, renderTextureWithBlurInternal,
-    void, (CHyprOpenGLImpl* thisptr, SP<ITexture> tex, const CBox& box, const CHyprOpenGLImpl::STextureRenderData& data))
+HOOK_FUNCTION(Render::GL::, CHyprOpenGLImpl, renderTextureWithBlurInternal,
+    void, (Render::GL::CHyprOpenGLImpl* thisptr, SP<Render::ITexture> tex, const CBox& box, const Render::GL::CHyprOpenGLImpl::STextureRenderData& data))
 {
     g.RenderState.BlurredBG = data.blurredBG;
     original(thisptr, tex, box, data);
     g.RenderState.BlurredBG.reset();
 }
 
-HOOK_FUNCTION(, CHyprOpenGLImpl, renderTextureInternal,
-    void, (CHyprOpenGLImpl* thisptr, SP<ITexture> tex, const CBox& box, const CHyprOpenGLImpl::STextureRenderData& data))
+HOOK_FUNCTION(Render::GL::, CHyprOpenGLImpl, renderTextureInternal,
+    void, (Render::GL::CHyprOpenGLImpl* thisptr, SP<Render::ITexture> tex, const CBox& box, const Render::GL::CHyprOpenGLImpl::STextureRenderData& data))
 {
     // so the blurred background does not get shaded
     g.RenderState.Ignore = g.RenderState.BlurredBG == tex;
@@ -54,8 +54,8 @@ HOOK_FUNCTION(, CHyprOpenGLImpl, renderTextureInternal,
 }
 
 
-HOOK_FUNCTION(, CHyprOpenGLImpl, getShaderVariant,
-    WP<CShader>, (CHyprOpenGLImpl* thisptr, Render::ePreparedFragmentShader frag, Render::ShaderFeatureFlags features))
+HOOK_FUNCTION(Render::GL::, CHyprOpenGLImpl, getShaderVariant,
+    WP<CShader>, (Render::GL::CHyprOpenGLImpl* thisptr, Render::ePreparedFragmentShader frag, Render::ShaderFeatureFlags features))
 {
     if (g.RenderState.Ignore || frag != Render::SH_FRAG_SURFACE)
         return original(thisptr, frag, features);

@@ -126,7 +126,7 @@ void ShaderVariant::SetUniforms(const Uniforms& args, PHLMONITOR monitor, PHLWIN
 
 CompiledShaders::~CompiledShaders()
 {
-    g_pHyprOpenGL->makeEGLCurrent();
+    Render::GL::g_pHyprOpenGL->makeEGLCurrent();
     FragVariants.clear();
 }
 
@@ -175,9 +175,9 @@ void main() {
     std::string testFrag = EditShader(testFragSource);
     auto testShader = SP(new CShader());
 
-    g_pHyprOpenGL->makeEGLCurrent();
+    Render::GL::g_pHyprOpenGL->makeEGLCurrent();
 
-    if (!testShader->createProgram(g_pHyprOpenGL->m_shaders->TEXVERTSRC, testFrag, true, true)) {
+    if (!testShader->createProgram(Render::GL::g_pHyprOpenGL->m_shaders->TEXVERTSRC, testFrag, true, true)) {
         Log::logger->log(Log::ERR, "Failed to compile this Shader: {}", testFrag);
         throw g.Efmt("Failed to compile Shader with Test Source, check logs for details");
     }
