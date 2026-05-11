@@ -4,6 +4,8 @@
 #include <sstream>
 #include <any>
 #include <optional>
+#include <cstdlib>
+#include <string_view>
 
 #include <hyprutils/string/ConstVarList.hpp>
 #include <hyprutils/utils/ScopeGuard.hpp>
@@ -112,10 +114,28 @@ struct State {
     struct UserShader {
         std::string Id;
         Hyprlang::STRING From;
-        Hyprlang::STRING Path;
+        std::string Path;
         Hyprlang::STRING Args;
         bool IntroducesTransparency;
     };
+
+    static std::string ExpandPath(std::string_view path)
+    {
+        if (path.empty()) return std::string{};
+
+        // Expand a leading "~" or "~/..." to the user's home directory.
+        if (path[0] == '~' && (path.size() == 1 || path[1] == '/'))
+        {
+            if (const char* home = std::getenv("HOME"); home && *home)
+            {
+                std::string result(home);
+                result.append(path.substr(1));
+                return result;
+            }
+        }
+
+        return std::string{path};
+    }
 
     void AddConfigValues()
     {
@@ -156,7 +176,7 @@ struct State {
             shaders.push_back(UserShader{
                 .Id = id,
                 .From = from,
-                .Path = path,
+                .Path = ExpandPath(path ? path : ""),
                 .Args = args,
                 .IntroducesTransparency = transparent > 0,
             });
