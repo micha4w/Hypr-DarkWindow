@@ -74,8 +74,16 @@ if hl.plugin.darkwindow ~= nil then
 
   -- Or use a dispatcher
   hl.bind(mainMod .. " + I", hl.plugin.darkwindow.dsp_shade({
-      shader = "invert"
-      -- optionally with a window field (see https://wiki.hypr.land/Configuring/Basics/Dispatchers/#window)
+      shader = "invert",
+
+      -- see https://wiki.hypr.land/Configuring/Basics/Dispatchers/#window
+      -- if no window field is specified, it targets the active window
+      window = "class:nemo",
+  }))
+
+  hl.bind(mainMod .. " + O", hl.plugin.darkwindow.dsp_shade({
+      -- also works with on-the-fly uniforms
+      shader = "chromakey bkg=[0.234 0.234 0.234] targetOpacity=0.5",
   }))
 end
 ```
