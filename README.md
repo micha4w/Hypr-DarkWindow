@@ -39,6 +39,8 @@ If you want to use your own Shaders, check [this](#custom-shaders) out.
 
 ## Configuration
 
+#### Lua
+
 ```lua
 -- hyprland.lua
 
@@ -76,6 +78,36 @@ if hl.plugin.darkwindow ~= nil then
       -- optionally with a window field (see https://wiki.hypr.land/Configuring/Basics/Dispatchers/#window)
   }))
 end
+```
+
+#### Hyprlang (deprecated)
+
+```ini
+# hyprland.conf
+
+plugin:darkwindow {
+  # To modify the uniforms of an already existing shader, create a new shader and set the uniforms you want
+  shader[tintRed] {
+      from = tint
+      args = tintColor=[1 0 0] tintStrength=0.1
+  }
+
+  # Use a custom shader from a file
+  shader[cool] {
+      path = /path/to/shader.glsl # see the section below (#custom-shaders) for the content of this file
+      args = wow=[1.0 0 0]
+      introduces_transparency = true # if you modify the alpha value make sure to set this value to true so hyprland knows it should enable blur
+  }
+}
+
+# Then to apply the shader to a window you can use window rules
+windowrule = darkwindow:shade invert, match:class (pb170.exe)
+# Uniforms can also be passed on the fly, but make sure to not use commas inside the arrays
+windowrule = darkwindow:shade tint tintColor=[0 1 0], match:fullscreen true
+
+# Or use a dispatcher
+bind = $mainMod, T, darkwindow:shadeactive, tint tintColor=[0 0.5 1] tintStrength=0.3
+# There is also a `darkwindow:shade WINDOW_REGEX SHADER_NAME` available (see https://wiki.hypr.land/Configuring/Basics/Dispatchers/#window)
 ```
 
 ### Custom Shaders
