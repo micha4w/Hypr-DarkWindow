@@ -16,6 +16,9 @@ Uniforms ShaderDefinition::ParseArgs(const std::string& args)
     {
         std::string name;
         std::getline(ss, name, '=');
+        if (ss.eof())
+            throw g.Efmt("expected '=' not found");
+
         name = Hyprutils::String::trim(name);
         for (auto [i, c] : std::views::enumerate(name))
         {
@@ -131,24 +134,31 @@ ShaderInstance* ShadeManager::EnsureShader(const std::string& shader)
         return nullptr;
 
     size_t space = shader.find(" ");
+    ShaderInstance* inst;
+
     if (space == std::string::npos)
     {
         auto found = m_Shaders.find(shader);
         if (found == m_Shaders.end())
             throw g.Efmt("Unable to find shader {}", shader);
 
-        return &found->second;
+        inst = &found->second;
     }
     else
     {
         auto from = Hyprutils::String::trim(shader.substr(0, space));
         auto args = shader.substr(space + 1);
-        return AddShader(ShaderDefinition{
+        inst = AddShader(ShaderDefinition{
             .ID = shader,
             .From = from,
             .Args = ShaderDefinition::ParseArgs(args),
-            });
+        });
     }
+
+    if (inst->Compiled->FailedCompilation)
+        throw g.Efmt("Shader {} failed to compile in a previous iteration, skipping", shader);
+
+    return inst;
 }
 
 void ShadeManager::LoadPredefinedShader(const std::string& name)
@@ -160,7 +170,7 @@ void ShadeManager::LoadPredefinedShader(const std::string& name)
             .Source = options.Source,
             .Args = options.DefaultArgs,
             .Transparency = options.Transparency,
-            });
+        });
     };
 
     if (name == "all")

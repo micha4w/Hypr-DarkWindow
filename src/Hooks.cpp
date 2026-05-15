@@ -65,12 +65,11 @@ HOOK_FUNCTION(Render::GL::, CHyprOpenGLImpl, getShaderVariant,
         return original(thisptr, frag, features);
 
     auto shaders = g.Manager.GetShaderForWindow(window);
-    if (!shaders)
+    if (!shaders || shaders->Compiled->FailedCompilation)
         return original(thisptr, frag, features);
 
     try
     {
-        auto& variants = thisptr->m_shaders->fragVariants[frag];
         auto shader = shaders->Compiled->GetOrCreateVariant(features, [&] {
             std::string fragSrc = Render::g_pShaderLoader->getVariantSource(frag, features);
             std::string modifiedFragSrc = shaders->Compiled->EditShader(fragSrc);
@@ -85,19 +84,7 @@ HOOK_FUNCTION(Render::GL::, CHyprOpenGLImpl, getShaderVariant,
     }
     catch (const std::exception& ex)
     {
-        shaders->Compiled->FailedCompilation = true;
         g.NotifyError(std::string("Failed to apply custom shader: ") + ex.what());
         return original(thisptr, frag, features);
     }
 }
-
-#ifdef WATCH_SHADERS
-HOOK_FUNCTION(, CConfigWatcher, setWatchList,
-    void, (void* thisptr, const std::vector<std::string>& paths))
-{
-    std::vector<std::string> newPaths = paths;
-    newPaths.insert(newPaths.end(), additionalWatchPaths.begin(), additionalWatchPaths.end());
-
-    original(thisptr, newPaths);
-}
-#endif

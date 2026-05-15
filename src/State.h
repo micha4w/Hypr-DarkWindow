@@ -17,6 +17,10 @@
 #include <hyprland/src/render/pass/SurfacePassElement.hpp>
 #include <hyprland/src/render/pass/Pass.hpp>
 #include <hyprland/src/config/legacy/ConfigManager.hpp>
+#include <hyprland/src/config/shared/inotify/ConfigWatcher.hpp>
+#include <hyprland/src/config/lua/bindings/LuaBindingsInternal.hpp>
+#include <hyprland/src/config/values/types/StringValue.hpp>
+#include <hyprland/src/config/shared/actions/ConfigActions.hpp>
 
 #include <hyprland/src/plugins/PluginAPI.hpp>
 #include <hyprland/src/event/EventBus.hpp>
@@ -31,6 +35,7 @@
 #undef private
 
 #include "ShadeManager.h"
+#include "LuaCallbacks.h"
 
 
 #define HOOK_FUNCTION(ns, className, methodName, retType, args)                                  \
@@ -47,17 +52,23 @@
 struct State {
     using WindowRuleEffect = Desktop::Rule::CWindowRuleEffectContainer::storageType;
 
+    struct UserShader {
+        std::string Id;
+        std::string From;
+        std::string Path;
+        std::string Args;
+        bool IntroducesTransparency;
+    };
+
     // assume everything is single threaded
 
     HANDLE Handle = nullptr;
     ShadeManager Manager;
+    SP<Config::Values::IValue> LoadShaders;
     WindowRuleEffect RuleShade;
+    std::vector<UserShader> UserShaders;
 
     std::vector<CHyprSignalListener> Listeners;
-
-#ifdef WATCH_SHADERS
-    std::vector<std::string> additionalWatchPaths;
-#endif
 
     void Init(HANDLE handle)
     {
@@ -106,26 +117,32 @@ struct State {
         }
     };
 
-    inline static const char* USER_SHADER_CATEGORY = "plugin:darkwindow:shader";
+    inline static const char* USER_SHADER_CATEGORY = "plugin:darkwindow:shader"; // TODO: not currently used with the Lua config, clean up at some point
     inline static const char* LOAD_SHADERS_KEY = "plugin:darkwindow:load_shaders";
-
-    struct UserShader {
-        std::string Id;
-        Hyprlang::STRING From;
-        Hyprlang::STRING Path;
-        Hyprlang::STRING Args;
-        bool IntroducesTransparency;
-    };
 
     void AddConfigValues()
     {
-        Config::Legacy::mgr()->m_config->addSpecialCategory(USER_SHADER_CATEGORY, { .key = "id", });
-        Config::Legacy::mgr()->m_config->addSpecialConfigValue(USER_SHADER_CATEGORY, "from", "");
-        Config::Legacy::mgr()->m_config->addSpecialConfigValue(USER_SHADER_CATEGORY, "path", "");
-        Config::Legacy::mgr()->m_config->addSpecialConfigValue(USER_SHADER_CATEGORY, "args", "");
-        Config::Legacy::mgr()->m_config->addSpecialConfigValue(USER_SHADER_CATEGORY, "introduces_transparency", Hyprlang::INT{ 0 });
+        if (auto legacy = Config::Legacy::mgr())
+        {
+            legacy->m_config->addSpecialCategory(USER_SHADER_CATEGORY, { .key = "id", });
+            legacy->m_config->addSpecialConfigValue(USER_SHADER_CATEGORY, "from", "");
+            legacy->m_config->addSpecialConfigValue(USER_SHADER_CATEGORY, "path", "");
+            legacy->m_config->addSpecialConfigValue(USER_SHADER_CATEGORY, "args", "");
+            legacy->m_config->addSpecialConfigValue(USER_SHADER_CATEGORY, "introduces_transparency", Hyprlang::INT{ 0 });
+        }
+        else
+        {
+            const auto registerLuaFn = [&](const std::string& name, lua_CFunction func) {
+                if (!HyprlandAPI::addLuaFunction(Handle, "darkwindow", name, func))
+                    throw Efmt("Failed to register Lua function hl.plugin.darwindow.{}", name);
+            };
+            registerLuaFn("load_shader", &LuaCallbacks::loadShader);
+            registerLuaFn("dsp_shade", &LuaCallbacks::shade);
+        }
 
-        HyprlandAPI::addConfigValue(Handle, LOAD_SHADERS_KEY, Hyprlang::STRING("all"));
+        LoadShaders = SP(new Config::Values::CStringValue(LOAD_SHADERS_KEY, "comma separated list of shaders to load, can be empty or \"all\"", "all"));
+        if (!HyprlandAPI::addConfigValueV2(Handle, LoadShaders))
+            throw Efmt("Failed to add config value {}", LOAD_SHADERS_KEY);
 
         RuleShade = Desktop::Rule::windowEffects()->registerEffect("darkwindow:shade");
     }
@@ -133,44 +150,52 @@ struct State {
     Hyprutils::String::CConstVarList Config_LoadedShaders()
     {
         return Hyprutils::String::CConstVarList(
-            (Hyprlang::STRING)HyprlandAPI::getConfigValue(Handle, LOAD_SHADERS_KEY)->dataPtr()
+            ((Config::Values::CStringValue*)LoadShaders.get())->value()
         );
     }
 
     std::vector<UserShader> Config_UserShaders()
     {
-        std::vector<UserShader> shaders;
-
-        auto ids = Config::Legacy::mgr()->m_config->listKeysForSpecialCategory(USER_SHADER_CATEGORY);
-        for (auto& id : std::set<std::string>(ids.begin(), ids.end()))
+        if (auto legacy = Config::Legacy::mgr())
         {
-            auto from = std::any_cast<Hyprlang::STRING>(
-                Config::Legacy::mgr()->m_config->getSpecialConfigValue(USER_SHADER_CATEGORY, "from", id.c_str()));
-            auto path = std::any_cast<Hyprlang::STRING>(
-                Config::Legacy::mgr()->m_config->getSpecialConfigValue(USER_SHADER_CATEGORY, "path", id.c_str()));
-            auto args = std::any_cast<Hyprlang::STRING>(
-                Config::Legacy::mgr()->m_config->getSpecialConfigValue(USER_SHADER_CATEGORY, "args", id.c_str()));
-            auto transparent = std::any_cast<Hyprlang::INT>(
-                Config::Legacy::mgr()->m_config->getSpecialConfigValue(USER_SHADER_CATEGORY, "introduces_transparency", id.c_str()));
+            std::vector<UserShader> shaders;
 
-            shaders.push_back(UserShader{
-                .Id = id,
-                .From = from,
-                .Path = path,
-                .Args = args,
-                .IntroducesTransparency = transparent > 0,
-            });
+            auto ids = legacy->m_config->listKeysForSpecialCategory(USER_SHADER_CATEGORY);
+            for (auto& id : std::set<std::string>(ids.begin(), ids.end()))
+            {
+                auto from = std::any_cast<Hyprlang::STRING>(
+                    legacy->m_config->getSpecialConfigValue(USER_SHADER_CATEGORY, "from", id.c_str()));
+                auto path = std::any_cast<Hyprlang::STRING>(
+                    legacy->m_config->getSpecialConfigValue(USER_SHADER_CATEGORY, "path", id.c_str()));
+                auto args = std::any_cast<Hyprlang::STRING>(
+                    legacy->m_config->getSpecialConfigValue(USER_SHADER_CATEGORY, "args", id.c_str()));
+                auto transparent = std::any_cast<Hyprlang::INT>(
+                    legacy->m_config->getSpecialConfigValue(USER_SHADER_CATEGORY, "introduces_transparency", id.c_str()));
+
+                shaders.push_back(UserShader{
+                    .Id = id,
+                    .From = from,
+                    .Path = path,
+                    .Args = args,
+                    .IntroducesTransparency = transparent > 0,
+                });
+            }
+
+            return shaders;
         }
-
-        return shaders;
+        else
+            return UserShaders;
     }
 
     void RemoveConfigValues() {
-        Config::Legacy::mgr()->m_config->removeSpecialConfigValue(USER_SHADER_CATEGORY, "from");
-        Config::Legacy::mgr()->m_config->removeSpecialConfigValue(USER_SHADER_CATEGORY, "path");
-        Config::Legacy::mgr()->m_config->removeSpecialConfigValue(USER_SHADER_CATEGORY, "args");
-        Config::Legacy::mgr()->m_config->removeSpecialConfigValue(USER_SHADER_CATEGORY, "introduces_transparency");
-        Config::Legacy::mgr()->m_config->removeSpecialCategory(USER_SHADER_CATEGORY);
+        if (auto legacy = Config::Legacy::mgr())
+        {
+            legacy->m_config->removeSpecialConfigValue(USER_SHADER_CATEGORY, "from");
+            legacy->m_config->removeSpecialConfigValue(USER_SHADER_CATEGORY, "path");
+            legacy->m_config->removeSpecialConfigValue(USER_SHADER_CATEGORY, "args");
+            legacy->m_config->removeSpecialConfigValue(USER_SHADER_CATEGORY, "introduces_transparency");
+            legacy->m_config->removeSpecialCategory(USER_SHADER_CATEGORY);
+        }
 
         Desktop::Rule::windowEffects()->unregisterEffect(RuleShade);
     }
@@ -194,7 +219,8 @@ struct State {
         );
     }
 
-    auto HandleError(auto f) {
+    auto HandleError(auto f)
+    {
         return [&](std::string args) {
             try
             {

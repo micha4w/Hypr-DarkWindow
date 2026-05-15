@@ -69,6 +69,11 @@ void SpecialVariables::SetUniforms(PHLMONITOR monitor, PHLWINDOW window)
         float seconds = std::chrono::duration_cast<std::chrono::duration<float>>(
             Time::steadyNow() - startTime
         ).count();
+
+        // Stupid workaroud for now to stop floating point imprecissions
+        if (seconds > 3600) // TODO: add a config value to the shader that goes something like "shader_animation_interval"?
+            startTime = Time::steadyNow();
+
         glUniform1f(loc, seconds);
     }
     if (loc = UniformLocations[(size_t)WindowSize]; loc != -1)
@@ -96,7 +101,7 @@ void ShaderVariant::PrimeUniforms(const Uniforms& args)
 
         GLint loc = glGetUniformLocation(Shader->program(), name.c_str());
         if (loc == -1)
-            throw g.Efmt("Shader failed to find the uniform: {}", name);
+            throw g.Efmt("Shader failed to find the uniform: '{}'", name);
         UniformLocations[name] = loc;
     }
 }
@@ -178,7 +183,7 @@ void main() {
     Render::GL::g_pHyprOpenGL->makeEGLCurrent();
 
     if (!testShader->createProgram(Render::GL::g_pHyprOpenGL->m_shaders->TEXVERTSRC, testFrag, true, true)) {
-        Log::logger->log(Log::ERR, "Failed to compile this Shader: {}", testFrag);
+        Log::logger->log(Log::ERR, "[Hypr-DarkWindow] Failed to compile this Shader: {}", testFrag);
         throw g.Efmt("Failed to compile Shader with Test Source, check logs for details");
     }
 
@@ -187,24 +192,32 @@ void main() {
 
 ShaderVariant& CompiledShaders::GetOrCreateVariant(uint8_t features, std::function<SP<CShader>()> create)
 {
-    auto compiled_it = FragVariants.find(features);
-    if (compiled_it != FragVariants.end())
-        return compiled_it->second;
+    try
+    {
+        auto compiled_it = FragVariants.find(features);
+        if (compiled_it != FragVariants.end())
+            return compiled_it->second;
 
-    auto newShader = create();
-    if (newShader->program() == 0)
-        throw g.Efmt("Failed to compile shader variant, check logs for details");
+        auto newShader = create();
+        if (newShader->program() == 0)
+            throw g.Efmt("Failed to compile shader variant, check logs for details");
 
-    auto& variant = FragVariants[features] = ShaderVariant{ .Shader = newShader };
+        auto& variant = FragVariants[features] = ShaderVariant{ .Shader = newShader };
 
-    for (auto* instance : Instances)
-        variant.PrimeUniforms(instance->Args);
+        for (auto* instance : Instances)
+            variant.PrimeUniforms(instance->Args);
 
-    if (variant.Specials.UniformLocations[(size_t)SpecialVariables::Time] != -1)
-        NeedsConstantDamage = true;
+        if (variant.Specials.UniformLocations[(size_t)SpecialVariables::Time] != -1)
+            NeedsConstantDamage = true;
 
-    if (variant.Specials.UniformLocations[(size_t)SpecialVariables::CursorPos] != -1)
-        NeedsMouseMoveDamage = true;
+        if (variant.Specials.UniformLocations[(size_t)SpecialVariables::CursorPos] != -1)
+            NeedsMouseMoveDamage = true;
 
-    return variant;
+        return variant;
+    }
+    catch (...)
+    {
+        FailedCompilation = true;
+        throw;
+    }
 }

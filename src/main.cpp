@@ -28,11 +28,12 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
     HyprlandAPI::addDispatcherV2(g.Handle, "invertactivewindow", [&](std::string args) { return shade("invert"); });
     HyprlandAPI::addDispatcherV2(g.Handle, "invertwindow", [&](std::string args) { return shadeSpecific(args + " invert"); });
 
+    g.Listeners.push_back(Event::bus()->m_events.config.preReload.listen([&] {
+        g.UserShaders.clear();
+    }));
+
     g.Listeners.push_back(Event::bus()->m_events.config.reloaded.listen([&] {
         g.Manager = ShadeManager();
-#ifdef WATCH_SHADERS
-        additionalWatchPaths.clear();
-#endif
 
         for (auto& name : g.Config_LoadedShaders())
         {
@@ -52,16 +53,15 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
             try
             {
                 Log::logger->log(Log::INFO, "[Hypr-DarkWindow] Loading custom shader with id: {}", shader.Id);
+
+                std::string absPath = !shader.Path.empty() ? absolutePath(shader.Path, Config::mgr()->getMainConfigPath()) : shader.Path;
                 g.Manager.AddShader(ShaderDefinition{
                     .ID = shader.Id,
                     .From = shader.From,
-                    .Path = shader.Path,
+                    .Path = absPath,
                     .Args = ShaderDefinition::ParseArgs(shader.Args),
                     .Transparency = IntroducesTransparency{ shader.IntroducesTransparency },
-                    });
-#ifdef WATCH_SHADERS
-                additionalWatchPaths.push_back(shader.Path);
-#endif
+                });
             }
             catch (const std::exception& ex)
             {
@@ -78,14 +78,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         {
             g.NotifyError(std::string("Failed to apply window rule shader: ") + ex.what());
         }
-
-#ifdef WATCH_SHADERS
-        Config::mgr()->updateWatcher();
-#endif
     }));
-
-    Config::mgr()->reload();
-
 
     g.Listeners.push_back(Event::bus()->m_events.window.updateRules.listen([&](PHLWINDOW window) {
         try
@@ -114,7 +107,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         "Hypr-DarkWindow",
         "Allows you to modify the fragment shader of specific windows",
         "micha4w",
-        "5.1.0"
+        "5.2.0"
     };
 }
 

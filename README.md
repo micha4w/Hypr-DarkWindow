@@ -17,9 +17,16 @@ Hyprland plugin that adds the possibility to modify the fragment shader of speci
 There are few shaders already included in this plugin.
 All of them get loaded with the plugin, if you want to only load specific ones you can limit the shaders that are loaded.
 
-```ini
-plugin:darkwindow:load_shaders = invert,tint # defaults to 'all'
-plugin:darkwindow:load_shaders = # dont load any default shaders
+```lua
+hl.config({
+    plugin = {
+        darkwindow = {
+            load_shaders = "invert, tint" -- defaults to "all"
+            load_shaders = "" -- dont load any default shaders
+        },
+    }
+})
+
 ```
 
 | **Name**      | **Description**                                                                                                                                                                                                                                                                                                                                                              |
@@ -32,42 +39,43 @@ If you want to use your own Shaders, check [this](#custom-shaders) out.
 
 ## Configuration
 
-> [!IMPORTANT]
-> BREAKING:
->
-> - WindowRules `invertwindow` and `shadewindow` were removed, use `darkwindow:shade [invert]` instead
-> - Shader definition was moved from `darkwindow:shader` to `plugin:darkwindow:shader`
->
-> Deprecated:
->
-> - Dispatchers `invert[active]window` and `shade[active]window` will be removed soon, use `darkwindow:shade[active] [invert]` instead
+```lua
+-- hyprland.lua
 
-```ini
-# hyprland.conf
+if hl.plugin.darkwindow ~= nil then
+  -- To modify the uniforms of an already existing shader, create a new shader and set the uniforms you want
+  hl.plugin.darkwindow.load_shader("tintRed", {
+      from = "tint",
+      args = "tintColor=[1 0 0] tintStrength=0.1",
+  })
 
-plugin:darkwindow {
-  # To modify the uniforms of an already existing shader, create a new shader and set the uniforms you want
-  shader[tintRed] {
-      from = tint
-      args = tintColor=[1 0 0] tintStrength=0.1
-  }
+  -- Use a custom shader from a file
+  hl.plugin.darkwindow.load_shader("chromakeyv2", {
+      --  see the section below (#custom-shaders) for the content of this file
+      path = "~/path/to/shader.glsl",
+      args = "wow=[1.0 0 0]",
+      -- if you modify the alpha value make sure to set this value to true so hyprland knows it should enable blur
+      introduces_transparency = true,
+  })
 
-  # Use a custom shader from a file
-  shader[cool] {
-      path = /path/to/shader.glsl # see the section below (#custom-shaders) for the content of this file
-      args = wow=[1.0 0 0]
-      introduces_transparency = true # if you modify the alpha value make sure to set this value to true so hyprland knows it should enable blur
-  }
-}
+  -- Then to apply the shader to a window you can use window rules
+  hl.window_rule({
+      match = { class = "pb250.exe" },
+      ["darkwindow:shade"] = "invert",
+  })
 
-# Then to apply the shader to a window you can use window rules
-windowrule = darkwindow:shade invert, match:class (pb170.exe)
-# Uniforms can also be passed on the fly, but make sure to not use commas inside the arrays
-windowrule = darkwindow:shade tint tintColor=[0 1 0], match:fullscreen true
+  -- Uniforms can also be passed on the fly
+  hl.window_rule({
+      match = { fullscreen = true },
+      ["darkwindow:shade"] = "tint tintColor=[0 1 0]",
+  })
 
-# Or use a dispatcher
-bind = $mainMod, T, darkwindow:shadeactive, tint tintColor=[0 0.5 1] tintStrength=0.3
-# There is also a `darkwindow:shade WINDOW_REGEX SHADER_NAME` available (see window in https://wiki.hypr.land/Configuring/Dispatchers/#parameter-explanation)
+  -- Or use a dispatcher
+  hl.bind(mainMod .. " + I", hl.plugin.darkwindow.dsp_shade({
+      shader = "invert"
+      -- optionally with a window field (see https://wiki.hypr.land/Configuring/Basics/Dispatchers/#window)
+  }))
+end
 ```
 
 ### Custom Shaders
