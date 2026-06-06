@@ -16,7 +16,7 @@ HOOK_FUNCTION(Render::, CRenderPass, render,
 {
     for (auto& elData : thisptr->m_passElements)
     {
-        if (CSurfacePassElement* s = dynamic_cast<CSurfacePassElement*>(elData->element.get()))
+        if (CSurfacePassElement* s = dynamic_cast<CSurfacePassElement*>(elData.element.get()))
         {
             if (s->m_data.pWindow)
             {
