@@ -63,6 +63,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
                 def.ID = shader.Id;
                 def.From = shader.From;
                 def.Path = absPath;
+                def.Source = shader.Source;
                 def.Transparency = IntroducesTransparency{shader.IntroducesTransparency};
                 def.FadeInSpeed = shader.FadeInSpeed;
                 def.FadeOutSpeed = shader.FadeOutSpeed;

@@ -150,7 +150,7 @@ int LuaCallbacks::loadShader(lua_State* L)
         return HyprLua::configError(
             L,
             "darkwindow.load_shader: expected second argument (config) to be a table "
-            "{ from?, path?, args?, introduces_transparency? }"
+            "{ from?, path?, source?, args?, introduces_transparency? }"
         );
 
     std::string id = lua_tostring(L, 1);
@@ -158,10 +158,16 @@ int LuaCallbacks::loadShader(lua_State* L)
         return HyprLua::configError(L, "darkwindow.load_shader: shader id cannot contain spaces");
     auto from = HyprLua::tableOptStr(L, 2, "from").value_or("");
     auto path = HyprLua::tableOptStr(L, 2, "path").value_or("");
+    auto source = HyprLua::tableOptStr(L, 2, "source").value_or("");
 
-    if (from.empty() && path.empty())
+    if (!path.empty() && !source.empty())
         return HyprLua::configError(
-            L, "darkwindow.load_shader: second argument (config) needs to have either 'from' or 'path' field set"
+            L, "darkwindow.load_shader: second argument (config) should only have one of 'path' or 'source' field set"
+        );
+
+    if (from.empty() && path.empty() && source.empty())
+        return HyprLua::configError(
+            L, "darkwindow.load_shader: second argument (config) needs to have 'from' or one of 'path' or 'source' field set"
         );
 
     auto introducesTransparency = HyprLua::tableOptBool(L, 2, "introduces_transparency").value_or(false);
@@ -180,6 +186,7 @@ int LuaCallbacks::loadShader(lua_State* L)
             .Id = id,
             .From = from,
             .Path = path,
+            .Source = source,
             .Args = *argsResult,
             .IntroducesTransparency = introducesTransparency,
             .FadeInSpeed = fadeInSpeed,

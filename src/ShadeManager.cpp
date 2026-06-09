@@ -105,9 +105,7 @@ ShaderInstance* ShadeManager::AddShader(ShaderDefinition&& def)
 
     ShaderInstance shader{ .ID = def.ID };
 
-    if (def.Source != "")
-        shader.Compiled = SP(new CompiledShaders{ .CustomSource = def.Source });
-    else try
+    try
     {
         if (def.From != "")
         {
@@ -129,8 +127,14 @@ ShaderInstance* ShadeManager::AddShader(ShaderDefinition&& def)
             shader.Compiled->TestCompilation(def.Args);
         }
 
+        if (def.Source != "")
+        {
+            shader.Compiled = SP(new CompiledShaders{ .CustomSource = def.Source });
+            shader.Compiled->TestCompilation(def.Args);
+        }
+
         if (!shader.Compiled)
-            throw g.Efmt("Either .from or .path has to be set");
+            throw g.Efmt("One of .from, .path, or .source has to be set");
     }
     catch (const std::exception& ex)
     {
