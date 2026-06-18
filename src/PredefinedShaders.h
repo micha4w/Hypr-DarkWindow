@@ -6,22 +6,21 @@ struct WindowShader {
     std::string Source;
     Uniforms DefaultArgs;
     IntroducesTransparency Transparency;
+    float FadeInSpeed = .0f, FadeOutSpeed = .0f;
+    float AnimationInterval = .0f;
 };
 
 inline static const std::map<std::string, WindowShader> WINDOW_SHADERS = {
     { "invert", { R"glsl(
         void windowShader(inout vec4 color) {
-            // remove premultiplied alpha
-            color.rgb /= color.a;
-
             // Invert Colors
-            color.rgb = vec3(1.) - vec3(.88, .9, .92) * color.rgb;
+            vec3 inverted = vec3(1.) - vec3(.88, .9, .92) * color.rgb / color.a;
 
             // Invert Hue
-            color.rgb = dot(vec3(0.26312, 0.5283, 0.10488), color.rgb) * 2.0 - color.rgb;
+            inverted = dot(vec3(0.26312, 0.5283, 0.10488), inverted) * 2.0 - inverted;
 
-            // remultiply alpha
-            color.rgb *= color.a;
+            // Animate
+            color.rgb = mix(color.rgb, inverted * color.a, x_FadeIn - x_FadeOut);
         }
     )glsl", {}, {} } },
     // Example for a shader with default uniform values
@@ -30,14 +29,7 @@ inline static const std::map<std::string, WindowShader> WINDOW_SHADERS = {
         uniform float tintStrength;
 
         void windowShader(inout vec4 color) {
-            // remove premultiplied alpha
-            color.rgb /= color.a;
-
-            // tint color
-            color.rgb = color.rgb * (1.0 - tintStrength) + tintColor * tintStrength;
-
-            // remultiply alpha
-            color.rgb *= color.a;
+            color.rgb = mix(color.rgb, tintColor * color.a, tintStrength * (x_FadeIn - x_FadeOut));
         }
     )glsl", {
         { "tintColor", { 1, 0, 0 } },
@@ -58,7 +50,8 @@ inline static const std::map<std::string, WindowShader> WINDOW_SHADERS = {
                 vec3 error = vec3(abs(bkg.r - color.r), abs(bkg.g - color.g), abs(bkg.b - color.b));
                 float avg_error = (error.r + error.g + error.b) / 3.0;
 
-                color *= targetOpacity + (1.0 - targetOpacity) * avg_error * amount / similarity;
+                float animatedOpacity = mix(1., targetOpacity, x_FadeIn - x_FadeOut);
+                color *= animatedOpacity + (1.0 - animatedOpacity) * avg_error * amount / similarity;
             }
         }
     )glsl", {

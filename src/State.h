@@ -58,6 +58,8 @@ struct State {
         std::string Path;
         std::string Args;
         bool IntroducesTransparency;
+        std::optional<float> FadeInSpeed, FadeOutSpeed;
+        std::optional<float> AnimationInterval;
     };
 
     // assume everything is single threaded
@@ -86,6 +88,7 @@ struct State {
     struct {
         bool Ignore = true;
         WP<Render::ITexture> BlurredBG;
+        Time::steady_tp Time;
     } RenderState;
 
     struct Hook {
@@ -122,6 +125,7 @@ struct State {
 
     void AddConfigValues()
     {
+        // legacy config is only supported for backwards compatibility, no new features will be added
         if (auto legacy = Config::Legacy::mgr())
         {
             legacy->m_config->addSpecialCategory(USER_SHADER_CATEGORY, { .key = "id", });
@@ -138,6 +142,7 @@ struct State {
             };
             registerLuaFn("load_shader", &LuaCallbacks::loadShader);
             registerLuaFn("dsp_shade", &LuaCallbacks::shade);
+            registerLuaFn("build_window_rule", &LuaCallbacks::buildWindowRule);
         }
 
         LoadShaders = SP(new Config::Values::CStringValue(LOAD_SHADERS_KEY, "comma separated list of shaders to load, can be empty or \"all\"", "all"));

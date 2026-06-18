@@ -4,7 +4,9 @@
 #include <map>
 
 #include <hyprland/src/render/Shader.hpp>
+#include <hyprland/src/helpers/time/Time.hpp>
 
+struct ShadedWindow;
 
 enum IntroducesTransparency : bool { No = false, Yes = true };
 using Uniforms = std::map<std::string, std::vector<float>>;
@@ -13,8 +15,10 @@ struct SpecialVariables {
     enum SpecialUniforms : uint8_t
     {
         Time,
-        WindowSize,
+        FadeIn,
+        FadeOut,
         CursorPos,
+        WindowSize,
         MonitorScale,
         _Count
     };
@@ -23,7 +27,7 @@ struct SpecialVariables {
 
     static std::string EditSource(const std::string& originalSource, std::string pixelGetter);
     void PrimeUniforms(const SP<CShader>& shader);
-    void SetUniforms(PHLMONITOR monitor, PHLWINDOW window);
+    void SetUniforms(ShadedWindow& props, PHLMONITOR monitor, PHLWINDOW window);
 };
 
 struct ShaderVariant
@@ -34,7 +38,7 @@ struct ShaderVariant
     SpecialVariables Specials;
 
     void PrimeUniforms(const Uniforms& args);
-    void SetUniforms(const Uniforms& args, PHLMONITOR monitor, PHLWINDOW window) noexcept;
+    void SetUniforms(ShadedWindow& props, PHLMONITOR monitor, PHLWINDOW window) noexcept;
 };
 
 struct CompiledShaders
@@ -43,8 +47,8 @@ struct CompiledShaders
     std::map<uint8_t, ShaderVariant> FragVariants;
     bool FailedCompilation = false;
 
-    bool NeedsConstantDamage = false;
-    bool NeedsMouseMoveDamage = false;
+    bool UsesTimeUniform = false;
+    bool UsesMousePosUniform = false;
 
     std::vector<struct ShaderInstance*> Instances;
 
@@ -62,5 +66,27 @@ struct ShaderInstance
 
     SP<CompiledShaders> Compiled;
     Uniforms Args;
+
     IntroducesTransparency Transparency;
+    float FadeInSpeed, FadeOutSpeed;
+    float AnimationInterval;
+};
+
+
+struct ShadedWindow
+{
+    ShaderInstance* RuleShader = nullptr;
+    ShaderInstance* DispatchShader = nullptr;
+
+    ShaderInstance* ConfiguredShader = nullptr; // the shader that the User wants
+    ShaderInstance* FadingOutShader = nullptr; // the shader that is fading out, if any
+    ShaderInstance* ActiveShader = nullptr; // one of ConfiguredShader or FadingOutShader
+
+    Time::steady_tp StartTime;
+    Time::steady_tp FadeStartTime;
+    enum {
+        FadeIn,
+        None,
+        FadeOut,
+    } FadeState;
 };

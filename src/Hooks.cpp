@@ -3,8 +3,8 @@
 HOOK_FUNCTION(Desktop::View::, CWindow, opaque,
     bool, (Desktop::View::CWindow* thisptr))
 {
-    auto shader = g.Manager.GetShaderForWindow(thisptr->m_self.lock());
-    if (shader && shader->Transparency)
+    auto config = g.Manager.GetShaderForWindow(thisptr->m_self.lock());
+    if (config && config->ActiveShader->Transparency)
         // so Hyprland does not try to optimize away the drawing of the background
         return false;
 
@@ -20,12 +20,12 @@ HOOK_FUNCTION(Render::, CRenderPass, render,
         {
             if (s->m_data.pWindow)
             {
-                auto shaders = g.Manager.GetShaderForWindow(s->m_data.pWindow);
+                auto config = g.Manager.GetShaderForWindow(s->m_data.pWindow);
 
-                if (shaders)
+                if (config)
                 {
                     // bool success = SaveTextureAsBMP(*s->m_data.texture, "/home/micha4w/Code/Linux/Hypr-DarkWindow/todo/" + s->m_data.pWindow->m_class + ".bmp");
-                    if (shaders->Transparency && s->m_data.alpha >= 1)
+                    if (config->ActiveShader && config->ActiveShader->Transparency && s->m_data.alpha >= 1)
                         // so the blur gets drawn
                         s->m_data.alpha = 0.999f;
                 }
@@ -64,9 +64,10 @@ HOOK_FUNCTION(Render::GL::, CHyprOpenGLImpl, getShaderVariant,
     if (!window)
         return original(thisptr, frag, features);
 
-    auto shaders = g.Manager.GetShaderForWindow(window);
-    if (!shaders || shaders->Compiled->FailedCompilation)
+    auto config = g.Manager.GetShaderForWindow(window);
+    if (!config || config->ActiveShader->Compiled->FailedCompilation)
         return original(thisptr, frag, features);
+    auto shaders = config->ActiveShader;
 
     try
     {
@@ -79,7 +80,7 @@ HOOK_FUNCTION(Render::GL::, CHyprOpenGLImpl, getShaderVariant,
             return newShader;
         });
 
-        shader.SetUniforms(shaders->Args, g_pHyprRenderer->renderData().pMonitor.lock(), window);
+        shader.SetUniforms(*config, g_pHyprRenderer->renderData().pMonitor.lock(), window);
         return shader.Shader;
     }
     catch (const std::exception& ex)

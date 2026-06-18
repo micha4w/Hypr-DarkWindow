@@ -30,8 +30,10 @@ std::string SpecialVariables::EditSource(const std::string& originalSource, std:
 
     std::string source = R"glsl(
 uniform float x_Time;
-uniform vec2  x_WindowSize;
+uniform float x_FadeIn;
+uniform float x_FadeOut;
 uniform vec2  x_CursorPos;
+uniform vec2  x_WindowSize;
 uniform float x_MonitorScale;
 
 vec4 x_Texture(vec2 texCoord) {
@@ -55,27 +57,50 @@ vec4 x_TextureOffset(vec2 pixelOffset) {
 void SpecialVariables::PrimeUniforms(const SP<CShader>& shader)
 {
     UniformLocations[(uint8_t)Time] = glGetUniformLocation(shader->program(), "x_Time");
-    UniformLocations[(uint8_t)WindowSize] = glGetUniformLocation(shader->program(), "x_WindowSize");
+    UniformLocations[(uint8_t)FadeIn] = glGetUniformLocation(shader->program(), "x_FadeIn");
+    UniformLocations[(uint8_t)FadeOut] = glGetUniformLocation(shader->program(), "x_FadeOut");
     UniformLocations[(uint8_t)CursorPos] = glGetUniformLocation(shader->program(), "x_CursorPos");
+    UniformLocations[(uint8_t)WindowSize] = glGetUniformLocation(shader->program(), "x_WindowSize");
     UniformLocations[(uint8_t)MonitorScale] = glGetUniformLocation(shader->program(), "x_MonitorScale");
 }
 
-void SpecialVariables::SetUniforms(PHLMONITOR monitor, PHLWINDOW window)
+void SpecialVariables::SetUniforms(ShadedWindow& config, PHLMONITOR monitor, PHLWINDOW window)
 {
     GLint loc;
     if (loc = UniformLocations[(size_t)Time]; loc != -1)
     {
-        static auto startTime = Time::steadyNow();
-        float seconds = std::chrono::duration_cast<std::chrono::duration<float>>(
-            Time::steadyNow() - startTime
-        ).count();
+        float secondsPassed =
+            std::chrono::duration_cast<std::chrono::milliseconds>(g.RenderState.Time - config.StartTime).count() / 1000.f;
 
-        // Stupid workaroud for now to stop floating point imprecissions
-        if (seconds > 3600) // TODO: add a config value to the shader that goes something like "shader_animation_interval"?
-            startTime = Time::steadyNow();
-
-        glUniform1f(loc, seconds);
+        glUniform1f(loc, secondsPassed);
     }
+    if (loc = UniformLocations[(size_t)FadeIn]; loc != -1)
+    {
+        float progress = 1.f;
+        if (config.FadeState == ShadedWindow::FadeIn)
+        {
+            auto msPassed =
+                std::chrono::duration_cast<std::chrono::milliseconds>(g.RenderState.Time - config.FadeStartTime).count();
+
+            progress = msPassed / (config.ActiveShader->FadeInSpeed * 100.f);
+        }
+
+        glUniform1f(loc, progress);
+    }
+    if (loc = UniformLocations[(size_t)FadeOut]; loc != -1)
+    {
+        float progress = 0.f;
+        if (config.FadeState == ShadedWindow::FadeOut)
+        {
+            auto ms_passed =
+                std::chrono::duration_cast<std::chrono::milliseconds>(g.RenderState.Time - config.FadeStartTime).count();
+
+            progress = ms_passed / (config.ActiveShader->FadeOutSpeed * 100.f);
+        }
+
+        glUniform1f(loc, progress);
+    }
+
     if (loc = UniformLocations[(size_t)WindowSize]; loc != -1)
     {
         auto size = window->m_realSize->value();
@@ -106,16 +131,16 @@ void ShaderVariant::PrimeUniforms(const Uniforms& args)
     }
 }
 
-void ShaderVariant::SetUniforms(const Uniforms& args, PHLMONITOR monitor, PHLWINDOW window) noexcept
+void ShaderVariant::SetUniforms(ShadedWindow& config, PHLMONITOR monitor, PHLWINDOW window) noexcept
 {
     GLint prog;
     glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
 
     glUseProgram(Shader->program());
 
-    Specials.SetUniforms(monitor, window);
+    Specials.SetUniforms(config, monitor, window);
 
-    for (auto& [name, values] : args) {
+    for (auto& [name, values] : config.ActiveShader->Args) {
         GLint loc = UniformLocations[name];
         switch (values.size()) {
         case 1: glUniform1f(loc, values[0]); break;
@@ -172,6 +197,7 @@ uniform float alpha;
 
 layout(location = 0) out vec4 fragColor;
 void main() {
+    // Simple dummy shader for a simple test
     vec4 pixColor = vec4(1.0);
     fragColor = pixColor;
 }
@@ -208,10 +234,10 @@ ShaderVariant& CompiledShaders::GetOrCreateVariant(uint8_t features, std::functi
             variant.PrimeUniforms(instance->Args);
 
         if (variant.Specials.UniformLocations[(size_t)SpecialVariables::Time] != -1)
-            NeedsConstantDamage = true;
+            UsesTimeUniform = true;
 
         if (variant.Specials.UniformLocations[(size_t)SpecialVariables::CursorPos] != -1)
-            NeedsMouseMoveDamage = true;
+            UsesMousePosUniform = true;
 
         return variant;
     }

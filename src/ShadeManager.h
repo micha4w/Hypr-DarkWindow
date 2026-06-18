@@ -2,6 +2,7 @@
 
 #include "CustomShader.h"
 
+// TODO: unify this with usershader once legacy is gone
 struct ShaderDefinition
 {
     std::string ID;
@@ -13,14 +14,16 @@ struct ShaderDefinition
 
     Uniforms Args;
     IntroducesTransparency Transparency;
+    std::optional<float> FadeInSpeed, FadeOutSpeed;
+    std::optional<float> AnimationInterval;
 
-    static Uniforms ParseArgs(const std::string& args);
+    static ShaderDefinition Parse(const std::string& shader);
 };
 
 class ShadeManager
 {
 public:
-    ShaderInstance* AddShader(ShaderDefinition def);
+    ShaderInstance* AddShader(ShaderDefinition&& def);
     ShaderInstance* EnsureShader(const std::string& shader);
     void LoadPredefinedShader(const std::string& name);
 
@@ -28,20 +31,13 @@ public:
     void ApplyWindowRuleShader(PHLWINDOW window);
     void ApplyDispatchedShader(PHLWINDOW window, const std::string& shader);
     void ForgetWindow(PHLWINDOW window);
-    ShaderInstance* GetShaderForWindow(PHLWINDOW window);
+    ShadedWindow* GetShaderForWindow(PHLWINDOW window);
 
     void PreRenderMonitor(PHLMONITOR monitor);
     void MouseMove();
 
 private:
     std::map<std::string, ShaderInstance> m_Shaders;
-
-    struct ShadedWindow {
-        ShaderInstance* RuleShader;
-        ShaderInstance* DispatchShader;
-
-        ShaderInstance* ActiveShader;
-    };
 
     std::map<PHLWINDOW, ShadedWindow> m_Windows;
 

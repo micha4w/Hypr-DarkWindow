@@ -1,3 +1,4 @@
+#include "CustomShader.h"
 #include "State.h"
 
 APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
@@ -54,14 +55,20 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
             {
                 Log::logger->log(Log::INFO, "[Hypr-DarkWindow] Loading custom shader with id: {}", shader.Id);
 
-                std::string absPath = !shader.Path.empty() ? absolutePath(shader.Path, Config::mgr()->getMainConfigPath()) : shader.Path;
-                g.Manager.AddShader(ShaderDefinition{
-                    .ID = shader.Id,
-                    .From = shader.From,
-                    .Path = absPath,
-                    .Args = ShaderDefinition::ParseArgs(shader.Args),
-                    .Transparency = IntroducesTransparency{ shader.IntroducesTransparency },
-                });
+                std::string absPath = !shader.Path.empty()
+                                            ? absolutePath(shader.Path, Config::mgr()->getMainConfigPath())
+                                            : shader.Path;
+                // Stupid workaround for now because im too lazy to worry about both lua and legacy config
+                auto def = ShaderDefinition::Parse("dummy " + shader.Args);
+                def.ID = shader.Id;
+                def.From = shader.From;
+                def.Path = absPath;
+                def.Transparency = IntroducesTransparency{shader.IntroducesTransparency};
+                def.FadeInSpeed = shader.FadeInSpeed;
+                def.FadeOutSpeed = shader.FadeOutSpeed;
+                def.AnimationInterval = shader.AnimationInterval;
+
+                g.Manager.AddShader(std::move(def));
             }
             catch (const std::exception& ex)
             {
@@ -107,7 +114,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         "Hypr-DarkWindow",
         "Allows you to modify the fragment shader of specific windows",
         "micha4w",
-        "5.2.0"
+        "5.3.0"
     };
 }
 

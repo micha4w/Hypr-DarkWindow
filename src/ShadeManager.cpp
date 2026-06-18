@@ -2,16 +2,22 @@
 
 #include <fstream>
 
-#include "State.h"
+#include "CustomShader.h"
 #include "PredefinedShaders.h"
+#include "State.h"
 
 
-Uniforms ShaderDefinition::ParseArgs(const std::string& args)
+ShaderDefinition ShaderDefinition::Parse(const std::string& shader)
 {
-    Uniforms out;
-    std::stringstream ss(args);
+    ShaderDefinition out;
+    out.ID = shader;
+
+    std::stringstream ss(shader);
 
     ss >> std::ws;
+    ss >> out.From;
+    ss >> std::ws;
+
     while (!ss.eof())
     {
         std::string name;
@@ -22,11 +28,11 @@ Uniforms ShaderDefinition::ParseArgs(const std::string& args)
         name = Hyprutils::String::trim(name);
         for (auto [i, c] : std::views::enumerate(name))
         {
-            bool first = c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_';
-            bool other = c >= '0' && c <= '9';
-            bool special = c == '[' || c == ']' || c == '.';
+            bool everywhere = c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_' || c == '.';
+            bool arrays = c == '[' || c == ']';
+            bool not_first = arrays || (c >= '0' && c <= '9');
 
-            if (!(first || ((other || special) && i != 0)))
+            if (!(everywhere || (not_first && i != 0)))
                 throw g.Efmt("invalid shader uniform name '{}'", name);
         }
         ss >> std::ws;
@@ -71,13 +77,28 @@ Uniforms ShaderDefinition::ParseArgs(const std::string& args)
         if (ss.fail()) throw g.Efmt("expected a float");
         ss >> std::ws;
 
-        out[name] = values;
+        if (name.starts_with('.'))
+        {
+            if (values.size() != 1)
+                throw g.Efmt("shader properties must be a single float value");
+
+            if (name == ".fade_in_speed")
+                out.FadeInSpeed = values[0];
+            else if (name == ".fade_out_speed")
+                out.FadeOutSpeed = values[0];
+            else if (name == ".animation_interval")
+                out.AnimationInterval = values[0];
+            else
+                throw g.Efmt("unknown special shader uniform '{}'", name);
+        }
+        else
+            out.Args[name] = values;
     }
 
     return out;
 }
 
-ShaderInstance* ShadeManager::AddShader(ShaderDefinition def)
+ShaderInstance* ShadeManager::AddShader(ShaderDefinition&& def)
 {
     auto found = m_Shaders.find(def.ID);
     if (found != m_Shaders.end()) return &found->second;
@@ -94,15 +115,15 @@ ShaderInstance* ShadeManager::AddShader(ShaderDefinition def)
             if (from == m_Shaders.end())
                 throw g.Efmt("Unknown .from shader {}", def.From);
 
-            shader.Args = from->second.Args;
-            shader.Compiled = from->second.Compiled;
-            shader.Transparency = from->second.Transparency;
+            shader = from->second;
+            shader.ID = def.ID;
         }
 
         if (def.Path != "")
         {
             std::ifstream file(def.Path);
-            std::string source = std::string(std::istreambuf_iterator(file), {});
+            std::string source = "// Your custom User Shader Code:\n";
+            source += std::string(std::istreambuf_iterator(file), {});
 
             shader.Compiled = SP(new CompiledShaders{ .CustomSource = source });
             shader.Compiled->TestCompilation(def.Args);
@@ -118,7 +139,14 @@ ShaderInstance* ShadeManager::AddShader(ShaderDefinition def)
 
     def.Args.merge(shader.Args);
     shader.Args = std::move(def.Args);
-    shader.Transparency = IntroducesTransparency{ shader.Transparency || def.Transparency };
+    if (def.Transparency)
+        shader.Transparency = IntroducesTransparency{ def.Transparency };
+    if (def.FadeInSpeed)
+        shader.FadeInSpeed = *def.FadeInSpeed;
+    if (def.FadeOutSpeed)
+        shader.FadeOutSpeed = *def.FadeOutSpeed;
+    if (def.AnimationInterval)
+        shader.AnimationInterval = *def.AnimationInterval;
 
     for (auto& [_, variant] : shader.Compiled->FragVariants)
         variant.PrimeUniforms(shader.Args);
@@ -146,13 +174,7 @@ ShaderInstance* ShadeManager::EnsureShader(const std::string& shader)
     }
     else
     {
-        auto from = Hyprutils::String::trim(shader.substr(0, space));
-        auto args = shader.substr(space + 1);
-        inst = AddShader(ShaderDefinition{
-            .ID = shader,
-            .From = from,
-            .Args = ShaderDefinition::ParseArgs(args),
-        });
+        inst = AddShader(ShaderDefinition::Parse(shader));
     }
 
     if (inst->Compiled->FailedCompilation)
@@ -170,6 +192,9 @@ void ShadeManager::LoadPredefinedShader(const std::string& name)
             .Source = options.Source,
             .Args = options.DefaultArgs,
             .Transparency = options.Transparency,
+            .FadeInSpeed = options.FadeInSpeed,
+            .FadeOutSpeed = options.FadeOutSpeed,
+            .AnimationInterval = options.AnimationInterval,
         });
     };
 
@@ -245,19 +270,72 @@ void ShadeManager::ForgetWindow(PHLWINDOW window)
     m_Windows.erase(window);
 }
 
-ShaderInstance* ShadeManager::GetShaderForWindow(PHLWINDOW window)
+ShadedWindow* ShadeManager::GetShaderForWindow(PHLWINDOW window)
 {
     auto it = m_Windows.find(window);
-    return it != m_Windows.end() ? it->second.ActiveShader : nullptr;
+    return it != m_Windows.end() && it->second.ActiveShader ? &it->second : nullptr;
 }
 
 
 void ShadeManager::PreRenderMonitor(PHLMONITOR monitor)
 {
-    for (auto& [window, config] : m_Windows)
+    g.RenderState.Time = Time::steadyNow();
+
+    for (auto it = m_Windows.begin(); it != m_Windows.end();)
     {
-        if (config.ActiveShader->Compiled->NeedsConstantDamage
-            && g_pHyprRenderer->shouldRenderWindow(window, monitor))
+        auto& [window, config] = *it;
+
+        bool needsDamage = false, remove = false;
+        if (config.ActiveShader->Compiled->UsesTimeUniform)
+        {
+            float secondsPassed =
+                std::chrono::duration_cast<std::chrono::milliseconds>(g.RenderState.Time - config.StartTime).count() /
+                1000.f;
+            float loopDur = config.ActiveShader->AnimationInterval > 0.f ? config.ActiveShader->AnimationInterval : 86'400.f;
+            if (secondsPassed > loopDur)
+            {
+                double loops = std::floor(secondsPassed / loopDur);
+                config.StartTime += std::chrono::milliseconds((long) (loopDur * loops * 1000.f));
+            }
+
+            if (g_pHyprRenderer->shouldRenderWindow(window, monitor))
+                needsDamage = true;
+        }
+
+        switch (config.FadeState)
+        {
+        case ShadedWindow::FadeIn:
+            needsDamage = true;
+
+            if (g.RenderState.Time >
+                config.FadeStartTime + std::chrono::milliseconds((long) (config.ActiveShader->FadeInSpeed * 100.f)))
+                config.FadeState = ShadedWindow::None;
+
+            break;
+        case ShadedWindow::None:
+            break;
+        case ShadedWindow::FadeOut:
+            needsDamage = true;
+
+            if (g.RenderState.Time >
+                config.FadeStartTime + std::chrono::milliseconds((long) (config.ActiveShader->FadeOutSpeed * 100.f)))
+            {
+                config.ActiveShader = config.ConfiguredShader;
+                if (!config.ActiveShader)
+                {
+                    remove = true;
+                    break;
+                }
+
+                config.FadingOutShader = nullptr;
+                config.StartTime = g.RenderState.Time;
+                config.FadeStartTime = g.RenderState.Time;
+                config.FadeState = config.ConfiguredShader->FadeInSpeed > 0.f ? ShadedWindow::FadeIn : ShadedWindow::None;
+            }
+            break;
+        }
+
+        if (needsDamage)
         {
             // Code stolen from g_pHyprRenderer->damageWindow
             auto windowBox = window->getFullWindowBoundingBox();
@@ -265,6 +343,11 @@ void ShadeManager::PreRenderMonitor(PHLMONITOR monitor)
             fixedDamageBox.scale(monitor->m_scale);
             monitor->addDamage(fixedDamageBox);
         }
+
+        if (remove)
+            it = m_Windows.erase(it);
+        else
+            ++it;
     }
 }
 
@@ -272,29 +355,85 @@ void ShadeManager::MouseMove()
 {
     for (auto& [window, config] : m_Windows)
     {
-        if (config.ActiveShader->Compiled->NeedsMouseMoveDamage)
+        if (config.ActiveShader->Compiled->UsesMousePosUniform)
             g_pHyprRenderer->damageWindow(window);
     }
 }
 
 
-void ShadeManager::windowShaderChanged(decltype(m_Windows)::iterator it) {
-    auto& s = it->second;
+void ShadeManager::windowShaderChanged(decltype(m_Windows)::iterator it)
+{
+    auto& [window, s] = *it;
 
-    s.ActiveShader = nullptr;
+    ShaderInstance* prevConfigured = s.ConfiguredShader;
+    s.ConfiguredShader = nullptr;
     if (s.RuleShader && s.DispatchShader)
     {
         if (s.RuleShader->ID != s.DispatchShader->ID)
-            s.ActiveShader = s.DispatchShader;
+            s.ConfiguredShader = s.DispatchShader;
     }
     else if (s.DispatchShader)
-        s.ActiveShader = s.DispatchShader;
+        s.ConfiguredShader = s.DispatchShader;
     else if (s.RuleShader)
-        s.ActiveShader = s.RuleShader;
+        s.ConfiguredShader = s.RuleShader;
 
-    g_pHyprRenderer->damageWindow(it->first);
+    if (prevConfigured == s.ConfiguredShader)
+    {
+        s.ActiveShader = s.FadingOutShader ? s.FadingOutShader : s.ConfiguredShader;
+        return;
+    }
+
+    auto prevStartTime = s.FadeStartTime;
+    auto prevFadeState = s.FadeState;
+    if (!s.FadingOutShader)
+    {
+        auto now = Time::steadyNow();
+        s.StartTime = now;
+        s.FadeStartTime = now;
+        s.FadeState = ShadedWindow::None;
+
+        if (prevConfigured && prevConfigured->FadeOutSpeed > 0.f)
+        {
+            s.FadingOutShader = prevConfigured;
+            s.FadeState = ShadedWindow::FadeOut;
+
+            if (prevFadeState == ShadedWindow::FadeIn)
+            {
+                auto ms_passed = std::chrono::duration_cast<std::chrono::milliseconds>(now - prevStartTime).count();
+                auto progress = 1.f - ms_passed / (s.FadingOutShader->FadeInSpeed * 100.f);
+                if (progress < 0.f)
+                    progress = 0.f;
+
+                s.FadeStartTime =
+                    now - std::chrono::milliseconds((long) (progress * s.FadingOutShader->FadeOutSpeed * 100.f));
+            }
+        }
+        else if (s.ConfiguredShader && s.ConfiguredShader->FadeInSpeed > 0.f)
+            s.FadeState = ShadedWindow::FadeIn;
+    }
+    else if (s.FadingOutShader == s.ConfiguredShader)
+    {
+        auto now = Time::steadyNow();
+        s.FadingOutShader = nullptr;
+        s.FadeStartTime = now;
+        s.FadeState = ShadedWindow::None;
+
+        if (prevFadeState == ShadedWindow::FadeOut && s.ConfiguredShader->FadeInSpeed > 0.f)
+        {
+            auto ms_passed = std::chrono::duration_cast<std::chrono::milliseconds>(now - prevStartTime).count();
+            auto progress = 1.f - ms_passed / (s.ConfiguredShader->FadeOutSpeed * 100.f);
+            if (progress < 0.f)
+                progress = 0.f;
+
+            s.FadeStartTime = now - std::chrono::milliseconds((long) (progress * s.ConfiguredShader->FadeInSpeed * 100.f));
+            s.FadeState = ShadedWindow::FadeIn;
+        }
+    }
+
+    s.ActiveShader = s.FadingOutShader ? s.FadingOutShader : s.ConfiguredShader;
+
+    g_pHyprRenderer->damageWindow(window);
 
     if (!s.ActiveShader)
         m_Windows.erase(it);
 }
-
