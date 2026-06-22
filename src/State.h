@@ -56,6 +56,7 @@ struct State {
         std::string Id;
         std::string From;
         std::string Path;
+        std::string Source;
         std::string Args;
         bool IntroducesTransparency;
         std::optional<float> FadeInSpeed, FadeOutSpeed;
