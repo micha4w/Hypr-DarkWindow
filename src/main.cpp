@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include "CustomShader.h"
 #include "State.h"
 
@@ -6,6 +7,12 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
     g.Init(handle);
 
     Log::logger->log(Log::INFO, "[Hypr-DarkWindow] Loading Plugin");
+
+    if (!Render::GL::g_pHyprOpenGL->m_shadersInitialized)
+    {
+        Log::logger->log(Log::INFO, "[Hypr-DarkWindow] Forcing shader initialization");
+        Render::GL::g_pHyprOpenGL->initShaders();
+    }
 
     g.AddConfigValues();
     g.HookFunctions();
