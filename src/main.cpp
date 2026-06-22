@@ -124,7 +124,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 
     g.Listeners.push_back(Event::bus()->m_events.input.mouse.move.listen([&] { g.Manager.MouseMove(); }));
 
-    return { "Hypr-DarkWindow", "Allows you to modify the fragment shader of specific windows", "micha4w", "5.3.0" };
+    return { "Hypr-DarkWindow", "Allows you to modify the fragment shader of specific windows", "micha4w", "5.4.0" };
 }
 
 APICALL EXPORT void PLUGIN_EXIT()
