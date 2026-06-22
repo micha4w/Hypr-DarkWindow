@@ -48,7 +48,8 @@ ShaderDefinition ShaderDefinition::Parse(const std::string& shader)
                 float next;
                 ss >> next;
 
-                if (ss.fail()) break;
+                if (ss.fail())
+                    break;
                 values.push_back(next);
 
                 ss >> std::ws;
@@ -57,12 +58,14 @@ ShaderDefinition ShaderDefinition::Parse(const std::string& shader)
                     ss.get();
                     ss >> std::ws;
                 }
-                if (ss.peek() == ']') {
+                if (ss.peek() == ']')
+                {
                     ss.get();
                     break;
                 }
 
-                if (ss.eof()) throw g.Efmt("expected ']' not found");
+                if (ss.eof())
+                    throw g.Efmt("expected ']' not found");
             }
 
             if (values.size() < 1 || values.size() > 4)
@@ -74,7 +77,8 @@ ShaderDefinition ShaderDefinition::Parse(const std::string& shader)
             ss >> next;
             values.push_back(next);
         }
-        if (ss.fail()) throw g.Efmt("expected a float");
+        if (ss.fail())
+            throw g.Efmt("expected a float");
         ss >> std::ws;
 
         if (name.starts_with('.'))
@@ -101,7 +105,8 @@ ShaderDefinition ShaderDefinition::Parse(const std::string& shader)
 ShaderInstance* ShadeManager::AddShader(ShaderDefinition&& def)
 {
     auto found = m_Shaders.find(def.ID);
-    if (found != m_Shaders.end()) return &found->second;
+    if (found != m_Shaders.end())
+        return &found->second;
 
     ShaderInstance shader{ .ID = def.ID };
 
@@ -189,17 +194,20 @@ ShaderInstance* ShadeManager::EnsureShader(const std::string& shader)
 
 void ShadeManager::LoadPredefinedShader(const std::string& name)
 {
-    static const auto add = [](ShadeManager* self, const auto& source) {
+    static const auto add = [](ShadeManager* self, const auto& source)
+    {
         auto& [id, options] = source;
-        self->AddShader(ShaderDefinition{
-            .ID = id,
-            .Source = options.Source,
-            .Args = options.DefaultArgs,
-            .Transparency = options.Transparency,
-            .FadeInSpeed = options.FadeInSpeed,
-            .FadeOutSpeed = options.FadeOutSpeed,
-            .AnimationInterval = options.AnimationInterval,
-        });
+        self->AddShader(
+            ShaderDefinition{
+                .ID = id,
+                .Source = options.Source,
+                .Args = options.DefaultArgs,
+                .Transparency = options.Transparency,
+                .FadeInSpeed = options.FadeInSpeed,
+                .FadeOutSpeed = options.FadeOutSpeed,
+                .AnimationInterval = options.AnimationInterval,
+            }
+        );
     };
 
     if (name == "all")
@@ -227,7 +235,8 @@ void ShadeManager::RecheckWindowRules()
 void ShadeManager::ApplyWindowRuleShader(PHLWINDOW window)
 {
     // for some reason, some events (currently `activeWindow`) sometimes pass a null pointer
-    if (!window) return;
+    if (!window)
+        return;
 
     std::optional<std::string> newShader, currentShader;
     auto& props = window->m_ruleApplicator->m_otherProps.props;
@@ -253,7 +262,8 @@ void ShadeManager::ApplyWindowRuleShader(PHLWINDOW window)
 
 void ShadeManager::ApplyDispatchedShader(PHLWINDOW window, const std::string& shader)
 {
-    if (!window) return;
+    if (!window)
+        return;
 
     auto it = m_Windows.find(window);
     if (it != m_Windows.end())

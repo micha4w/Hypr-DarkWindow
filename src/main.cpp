@@ -10,15 +10,17 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
     g.AddConfigValues();
     g.HookFunctions();
 
-    const auto shade = g.HandleError([&](std::string args) {
-        g.Manager.ApplyDispatchedShader(Desktop::focusState()->window(), args);
-    });
-    const auto shadeSpecific = g.HandleError([&](std::string args) {
-        size_t space = args.find(" ");
-        if (space == std::string::npos)
-            throw g.Efmt("Expected 2 Arguments: <WINDOW> <SHADER>");
-        g.Manager.ApplyDispatchedShader(g_pCompositor->getWindowByRegex(args.substr(0, space)), args.substr(space + 1));
-    });
+    const auto shade =
+        g.HandleError([&](std::string args) { g.Manager.ApplyDispatchedShader(Desktop::focusState()->window(), args); });
+    const auto shadeSpecific = g.HandleError(
+        [&](std::string args)
+        {
+            size_t space = args.find(" ");
+            if (space == std::string::npos)
+                throw g.Efmt("Expected 2 Arguments: <WINDOW> <SHADER>");
+            g.Manager.ApplyDispatchedShader(g_pCompositor->getWindowByRegex(args.substr(0, space)), args.substr(space + 1));
+        }
+    );
 
     HyprlandAPI::addDispatcherV2(g.Handle, "darkwindow:shade", shadeSpecific);
     HyprlandAPI::addDispatcherV2(g.Handle, "darkwindow:shadeactive", shade);
@@ -27,96 +29,102 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
     HyprlandAPI::addDispatcherV2(g.Handle, "shadeactivewindow", shade);
     HyprlandAPI::addDispatcherV2(g.Handle, "shadewindow", shadeSpecific);
     HyprlandAPI::addDispatcherV2(g.Handle, "invertactivewindow", [&](std::string args) { return shade("invert"); });
-    HyprlandAPI::addDispatcherV2(g.Handle, "invertwindow", [&](std::string args) { return shadeSpecific(args + " invert"); });
+    HyprlandAPI::addDispatcherV2(
+        g.Handle, "invertwindow", [&](std::string args) { return shadeSpecific(args + " invert"); }
+    );
 
-    g.Listeners.push_back(Event::bus()->m_events.config.preReload.listen([&] {
-        g.UserShaders.clear();
-    }));
+    g.Listeners.push_back(Event::bus()->m_events.config.preReload.listen([&] { g.UserShaders.clear(); }));
 
-    g.Listeners.push_back(Event::bus()->m_events.config.reloaded.listen([&] {
-        g.Manager = ShadeManager();
-
-        for (auto& name : g.Config_LoadedShaders())
-        {
-            try
+    g.Listeners.push_back(
+        Event::bus()->m_events.config.reloaded.listen(
+            [&]
             {
-                Log::logger->log(Log::INFO, "[Hypr-DarkWindow] Loading predefined shader with id: {}", name);
-                g.Manager.LoadPredefinedShader(std::string(name));
+                g.Manager = ShadeManager();
+
+                for (auto& name : g.Config_LoadedShaders())
+                {
+                    try
+                    {
+                        Log::logger->log(Log::INFO, "[Hypr-DarkWindow] Loading predefined shader with id: {}", name);
+                        g.Manager.LoadPredefinedShader(std::string(name));
+                    }
+                    catch (const std::exception& ex)
+                    {
+                        g.NotifyError("Failed to load predefined shader " + std::string(name) + ": " + ex.what());
+                    }
+                }
+
+                for (auto& shader : g.Config_UserShaders())
+                {
+                    try
+                    {
+                        Log::logger->log(Log::INFO, "[Hypr-DarkWindow] Loading custom shader with id: {}", shader.Id);
+
+                        std::string absPath = !shader.Path.empty()
+                                                  ? absolutePath(shader.Path, Config::mgr()->getMainConfigPath())
+                                                  : shader.Path;
+                        // Stupid workaround for now because im too lazy to worry about both lua and legacy config
+                        auto def = ShaderDefinition::Parse("dummy " + shader.Args);
+                        def.ID = shader.Id;
+                        def.From = shader.From;
+                        def.Path = absPath;
+                        def.Source = shader.Source;
+                        def.Transparency = IntroducesTransparency{ shader.IntroducesTransparency };
+                        def.FadeInSpeed = shader.FadeInSpeed;
+                        def.FadeOutSpeed = shader.FadeOutSpeed;
+                        def.AnimationInterval = shader.AnimationInterval;
+
+                        g.Manager.AddShader(std::move(def));
+                    }
+                    catch (const std::exception& ex)
+                    {
+                        g.NotifyError(
+                            std::string("Failed to load custom shader ") + g.USER_SHADER_CATEGORY + "[" + shader.Id +
+                            "]: " + ex.what()
+                        );
+                    }
+                }
+
+                Log::logger->log(Log::INFO, "[Hypr-DarkWindow] Compiled all shaders");
+                try
+                {
+                    g.Manager.RecheckWindowRules();
+                }
+                catch (const std::exception& ex)
+                {
+                    g.NotifyError(std::string("Failed to apply window rule shader: ") + ex.what());
+                }
             }
-            catch (const std::exception& ex)
+        )
+    );
+
+    g.Listeners.push_back(
+        Event::bus()->m_events.window.updateRules.listen(
+            [&](PHLWINDOW window)
             {
-                g.NotifyError("Failed to load predefined shader " + std::string(name) + ": " + ex.what());
+                try
+                {
+                    g.Manager.ApplyWindowRuleShader(window);
+                }
+                catch (const std::exception& ex)
+                {
+                    g.NotifyError(std::string("Failed to apply window rule shader: ") + ex.what());
+                }
             }
-        }
+        )
+    );
 
-        for (auto& shader : g.Config_UserShaders())
-        {
-            try
-            {
-                Log::logger->log(Log::INFO, "[Hypr-DarkWindow] Loading custom shader with id: {}", shader.Id);
+    g.Listeners.push_back(
+        Event::bus()->m_events.window.destroy.listen([&](PHLWINDOW window) { g.Manager.ForgetWindow(window); })
+    );
 
-                std::string absPath = !shader.Path.empty()
-                                            ? absolutePath(shader.Path, Config::mgr()->getMainConfigPath())
-                                            : shader.Path;
-                // Stupid workaround for now because im too lazy to worry about both lua and legacy config
-                auto def = ShaderDefinition::Parse("dummy " + shader.Args);
-                def.ID = shader.Id;
-                def.From = shader.From;
-                def.Path = absPath;
-                def.Source = shader.Source;
-                def.Transparency = IntroducesTransparency{shader.IntroducesTransparency};
-                def.FadeInSpeed = shader.FadeInSpeed;
-                def.FadeOutSpeed = shader.FadeOutSpeed;
-                def.AnimationInterval = shader.AnimationInterval;
+    g.Listeners.push_back(
+        Event::bus()->m_events.render.pre.listen([&](PHLMONITOR monitor) { g.Manager.PreRenderMonitor(monitor); })
+    );
 
-                g.Manager.AddShader(std::move(def));
-            }
-            catch (const std::exception& ex)
-            {
-                g.NotifyError(std::string("Failed to load custom shader ") + g.USER_SHADER_CATEGORY + "[" + shader.Id + "]: " + ex.what());
-            }
-        }
+    g.Listeners.push_back(Event::bus()->m_events.input.mouse.move.listen([&] { g.Manager.MouseMove(); }));
 
-        Log::logger->log(Log::INFO, "[Hypr-DarkWindow] Compiled all shaders");
-        try
-        {
-            g.Manager.RecheckWindowRules();
-        }
-        catch (const std::exception& ex)
-        {
-            g.NotifyError(std::string("Failed to apply window rule shader: ") + ex.what());
-        }
-    }));
-
-    g.Listeners.push_back(Event::bus()->m_events.window.updateRules.listen([&](PHLWINDOW window) {
-        try
-        {
-            g.Manager.ApplyWindowRuleShader(window);
-        }
-        catch (const std::exception& ex)
-        {
-            g.NotifyError(std::string("Failed to apply window rule shader: ") + ex.what());
-        }
-    }));
-
-    g.Listeners.push_back(Event::bus()->m_events.window.destroy.listen([&](PHLWINDOW window) {
-        g.Manager.ForgetWindow(window);
-    }));
-
-    g.Listeners.push_back(Event::bus()->m_events.render.pre.listen([&](PHLMONITOR monitor) {
-        g.Manager.PreRenderMonitor(monitor);
-    }));
-
-    g.Listeners.push_back(Event::bus()->m_events.input.mouse.move.listen([&] {
-        g.Manager.MouseMove();
-    }));
-
-    return {
-        "Hypr-DarkWindow",
-        "Allows you to modify the fragment shader of specific windows",
-        "micha4w",
-        "5.3.0"
-    };
+    return { "Hypr-DarkWindow", "Allows you to modify the fragment shader of specific windows", "micha4w", "5.3.0" };
 }
 
 APICALL EXPORT void PLUGIN_EXIT()

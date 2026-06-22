@@ -1,7 +1,6 @@
 #include "State.h"
 
-HOOK_FUNCTION(Desktop::View::, CWindow, opaque,
-    bool, (Desktop::View::CWindow* thisptr))
+HOOK_FUNCTION(Desktop::View::, CWindow, opaque, bool, (Desktop::View::CWindow * thisptr))
 {
     auto config = g.Manager.GetShaderForWindow(thisptr->m_self.lock());
     if (config && config->ActiveShader->Transparency)
@@ -11,8 +10,7 @@ HOOK_FUNCTION(Desktop::View::, CWindow, opaque,
     return original(thisptr);
 }
 
-HOOK_FUNCTION(Render::, CRenderPass, render,
-    CRegion, (Render::CRenderPass* thisptr, const CRegion& damage_))
+HOOK_FUNCTION(Render::, CRenderPass, render, CRegion, (Render::CRenderPass * thisptr, const CRegion& damage_))
 {
     for (auto& elData : thisptr->m_passElements)
     {
@@ -24,7 +22,8 @@ HOOK_FUNCTION(Render::, CRenderPass, render,
 
                 if (config)
                 {
-                    // bool success = SaveTextureAsBMP(*s->m_data.texture, "/home/micha4w/Code/Linux/Hypr-DarkWindow/todo/" + s->m_data.pWindow->m_class + ".bmp");
+                    // bool success = SaveTextureAsBMP(*s->m_data.texture, "/home/micha4w/Code/Linux/Hypr-DarkWindow/todo/" +
+                    // s->m_data.pWindow->m_class + ".bmp");
                     if (config->ActiveShader && config->ActiveShader->Transparency && s->m_data.alpha >= 1)
                         // so the blur gets drawn
                         s->m_data.alpha = 0.999f;
@@ -36,16 +35,32 @@ HOOK_FUNCTION(Render::, CRenderPass, render,
     return original(thisptr, damage_);
 }
 
-HOOK_FUNCTION(Render::GL::, CHyprOpenGLImpl, renderTextureWithBlurInternal,
-    void, (Render::GL::CHyprOpenGLImpl* thisptr, SP<Render::ITexture> tex, const CBox& box, const Render::GL::CHyprOpenGLImpl::STextureRenderData& data))
+HOOK_FUNCTION(
+    Render::GL::,
+    CHyprOpenGLImpl,
+    renderTextureWithBlurInternal,
+    void,
+    (Render::GL::CHyprOpenGLImpl * thisptr,
+     SP<Render::ITexture> tex,
+     const CBox& box,
+     const Render::GL::CHyprOpenGLImpl::STextureRenderData& data)
+)
 {
     g.RenderState.BlurredBG = data.blurredBG;
     original(thisptr, tex, box, data);
     g.RenderState.BlurredBG.reset();
 }
 
-HOOK_FUNCTION(Render::GL::, CHyprOpenGLImpl, renderTextureInternal,
-    void, (Render::GL::CHyprOpenGLImpl* thisptr, SP<Render::ITexture> tex, const CBox& box, const Render::GL::CHyprOpenGLImpl::STextureRenderData& data))
+HOOK_FUNCTION(
+    Render::GL::,
+    CHyprOpenGLImpl,
+    renderTextureInternal,
+    void,
+    (Render::GL::CHyprOpenGLImpl * thisptr,
+     SP<Render::ITexture> tex,
+     const CBox& box,
+     const Render::GL::CHyprOpenGLImpl::STextureRenderData& data)
+)
 {
     // so the blurred background does not get shaded
     g.RenderState.Ignore = g.RenderState.BlurredBG == tex;
@@ -54,8 +69,13 @@ HOOK_FUNCTION(Render::GL::, CHyprOpenGLImpl, renderTextureInternal,
 }
 
 
-HOOK_FUNCTION(Render::GL::, CHyprOpenGLImpl, getShaderVariant,
-    WP<CShader>, (Render::GL::CHyprOpenGLImpl* thisptr, Render::ePreparedFragmentShader frag, Render::ShaderFeatureFlags features))
+HOOK_FUNCTION(
+    Render::GL::,
+    CHyprOpenGLImpl,
+    getShaderVariant,
+    WP<CShader>,
+    (Render::GL::CHyprOpenGLImpl * thisptr, Render::ePreparedFragmentShader frag, Render::ShaderFeatureFlags features)
+)
 {
     if (g.RenderState.Ignore || frag != Render::SH_FRAG_SURFACE)
         return original(thisptr, frag, features);
@@ -71,14 +91,18 @@ HOOK_FUNCTION(Render::GL::, CHyprOpenGLImpl, getShaderVariant,
 
     try
     {
-        auto shader = shaders->Compiled->GetOrCreateVariant(features, [&] {
-            std::string fragSrc = Render::g_pShaderLoader->getVariantSource(frag, features);
-            std::string modifiedFragSrc = shaders->Compiled->EditShader(fragSrc);
+        auto shader = shaders->Compiled->GetOrCreateVariant(
+            features,
+            [&]
+            {
+                std::string fragSrc = Render::g_pShaderLoader->getVariantSource(frag, features);
+                std::string modifiedFragSrc = shaders->Compiled->EditShader(fragSrc);
 
-            auto newShader = makeShared<CShader>();
-            newShader->createProgram(thisptr->m_shaders->TEXVERTSRC, modifiedFragSrc, true, true);
-            return newShader;
-        });
+                auto newShader = makeShared<CShader>();
+                newShader->createProgram(thisptr->m_shaders->TEXVERTSRC, modifiedFragSrc, true, true);
+                return newShader;
+            }
+        );
 
         shader.SetUniforms(*config, g_pHyprRenderer->renderData().pMonitor.lock(), window);
         return shader.Shader;

@@ -1,17 +1,21 @@
 #pragma once
 
-#include <string>
-#include <map>
-
-#include <hyprland/src/render/Shader.hpp>
 #include <hyprland/src/helpers/time/Time.hpp>
+#include <hyprland/src/render/Shader.hpp>
+#include <map>
+#include <string>
 
 struct ShadedWindow;
 
-enum IntroducesTransparency : bool { No = false, Yes = true };
+enum IntroducesTransparency : bool
+{
+    No = false,
+    Yes = true
+};
 using Uniforms = std::map<std::string, std::vector<float>>;
 
-struct SpecialVariables {
+struct SpecialVariables
+{
     enum SpecialUniforms : uint8_t
     {
         Time,
@@ -23,7 +27,7 @@ struct SpecialVariables {
         _Count
     };
 
-    std::array<GLint, (size_t)SpecialUniforms::_Count> UniformLocations;
+    std::array<GLint, (size_t) SpecialUniforms::_Count> UniformLocations;
 
     static std::string EditSource(const std::string& originalSource, std::string pixelGetter);
     void PrimeUniforms(const SP<CShader>& shader);
@@ -78,13 +82,14 @@ struct ShadedWindow
     ShaderInstance* RuleShader = nullptr;
     ShaderInstance* DispatchShader = nullptr;
 
-    ShaderInstance* ConfiguredShader = nullptr; // the shader that the User wants
-    ShaderInstance* FadingOutShader = nullptr; // the shader that is fading out, if any
-    ShaderInstance* ActiveShader = nullptr; // one of ConfiguredShader or FadingOutShader
+    ShaderInstance* ConfiguredShader = nullptr;  // the shader that the User wants
+    ShaderInstance* FadingOutShader = nullptr;   // the shader that is fading out, if any
+    ShaderInstance* ActiveShader = nullptr;      // one of ConfiguredShader or FadingOutShader
 
     Time::steady_tp StartTime;
     Time::steady_tp FadeStartTime;
-    enum {
+    enum
+    {
         FadeIn,
         None,
         FadeOut,

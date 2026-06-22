@@ -1,58 +1,56 @@
 #pragma once
 
-#include <vector>
-#include <sstream>
 #include <any>
-#include <optional>
-
 #include <hyprutils/string/ConstVarList.hpp>
-#include <hyprutils/utils/ScopeGuard.hpp>
 #include <hyprutils/string/String.hpp>
+#include <hyprutils/utils/ScopeGuard.hpp>
+#include <optional>
+#include <sstream>
+#include <vector>
 
 // All hyprland includes are in this file so the private overwriting works correctly
 #define private public
-#include <hyprland/src/render/pass/PassElement.hpp>
-#include <hyprland/src/helpers/time/Time.hpp>
-
-#include <hyprland/src/render/pass/SurfacePassElement.hpp>
-#include <hyprland/src/render/pass/Pass.hpp>
-#include <hyprland/src/config/legacy/ConfigManager.hpp>
-#include <hyprland/src/config/shared/inotify/ConfigWatcher.hpp>
-#include <hyprland/src/config/lua/bindings/LuaBindingsInternal.hpp>
-#include <hyprland/src/config/values/types/StringValue.hpp>
-#include <hyprland/src/config/shared/actions/ConfigActions.hpp>
-
-#include <hyprland/src/plugins/PluginAPI.hpp>
-#include <hyprland/src/event/EventBus.hpp>
-
 #include <hyprland/src/Compositor.hpp>
+#include <hyprland/src/config/legacy/ConfigManager.hpp>
+#include <hyprland/src/config/lua/bindings/LuaBindingsInternal.hpp>
+#include <hyprland/src/config/shared/actions/ConfigActions.hpp>
+#include <hyprland/src/config/shared/inotify/ConfigWatcher.hpp>
+#include <hyprland/src/config/values/types/StringValue.hpp>
 #include <hyprland/src/desktop/DesktopTypes.hpp>
 #include <hyprland/src/desktop/state/FocusState.hpp>
-#include <hyprland/src/managers/PointerManager.hpp>
+#include <hyprland/src/event/EventBus.hpp>
 #include <hyprland/src/helpers/time/Time.hpp>
-
+#include <hyprland/src/managers/PointerManager.hpp>
+#include <hyprland/src/plugins/PluginAPI.hpp>
 #include <hyprland/src/render/Renderer.hpp>
+#include <hyprland/src/render/pass/Pass.hpp>
+#include <hyprland/src/render/pass/PassElement.hpp>
+#include <hyprland/src/render/pass/SurfacePassElement.hpp>
 #undef private
 
-#include "ShadeManager.h"
 #include "LuaCallbacks.h"
+#include "ShadeManager.h"
 
 
-#define HOOK_FUNCTION(ns, className, methodName, retType, args)                                  \
-    namespace _ns_##className_##methodName {                                                     \
-        retType hook args;                                                                       \
-        retType (*original) args = nullptr;                                                      \
-        auto register##className##methodName = [] {                                              \
-            g.Hooks.push_back({ #ns#className, #methodName, (void**) &original, (void*)hook });  \
-            return true;                                                                         \
-        }();                                                                                     \
-    }                                                                                            \
+#define HOOK_FUNCTION(ns, className, methodName, retType, args)                                   \
+    namespace _ns_##className_##methodName                                                        \
+    {                                                                                             \
+        retType hook args;                                                                        \
+        retType(*original) args = nullptr;                                                        \
+        auto register##className##methodName = []                                                 \
+        {                                                                                         \
+            g.Hooks.push_back({ #ns #className, #methodName, (void**) &original, (void*) hook }); \
+            return true;                                                                          \
+        }();                                                                                      \
+    }                                                                                             \
     retType _ns_##className_##methodName::hook args
 
-struct State {
+struct State
+{
     using WindowRuleEffect = Desktop::Rule::CWindowRuleEffectContainer::storageType;
 
-    struct UserShader {
+    struct UserShader
+    {
         std::string Id;
         std::string From;
         std::string Path;
@@ -82,17 +80,21 @@ struct State {
         if (COMPOSITOR_HASH != CLIENT_HASH)
         {
             NotifyError("Failed to load, mismatched versions! (see logs)");
-            throw Efmt("[Hypr-DarkWindow] version mismatch, built against {}, running compositor {}", CLIENT_HASH, COMPOSITOR_HASH);
+            throw Efmt(
+                "[Hypr-DarkWindow] version mismatch, built against {}, running compositor {}", CLIENT_HASH, COMPOSITOR_HASH
+            );
         }
     }
 
-    struct {
+    struct
+    {
         bool Ignore = true;
         WP<Render::ITexture> BlurredBG;
         Time::steady_tp Time;
     } RenderState;
 
-    struct Hook {
+    struct Hook
+    {
         std::string className;
         std::string methodName;
         void** originalPtr;
@@ -106,9 +108,12 @@ struct State {
         for (auto& hook : Hooks)
         {
             auto all = HyprlandAPI::findFunctionsByName(Handle, hook.methodName);
-            auto found = std::find_if(all.begin(), all.end(), [&](const SFunctionMatch& line) {
-                return line.demangled.starts_with(hook.className + "::" + hook.methodName + "(");
-            });
+            auto found = std::find_if(
+                all.begin(),
+                all.end(),
+                [&](const SFunctionMatch& line)
+                { return line.demangled.starts_with(hook.className + "::" + hook.methodName + "("); }
+            );
 
             if (found == all.end())
                 throw Efmt("Failed to find {}::{}", hook.className, hook.methodName);
@@ -121,7 +126,8 @@ struct State {
         }
     };
 
-    inline static const char* USER_SHADER_CATEGORY = "plugin:darkwindow:shader"; // TODO: not currently used with the Lua config, clean up at some point
+    inline static const char* USER_SHADER_CATEGORY =
+        "plugin:darkwindow:shader";  // TODO: not currently used with the Lua config, clean up at some point
     inline static const char* LOAD_SHADERS_KEY = "plugin:darkwindow:load_shaders";
 
     void AddConfigValues()
@@ -129,7 +135,12 @@ struct State {
         // legacy config is only supported for backwards compatibility, no new features will be added
         if (auto legacy = Config::Legacy::mgr())
         {
-            legacy->m_config->addSpecialCategory(USER_SHADER_CATEGORY, { .key = "id", });
+            legacy->m_config->addSpecialCategory(
+                USER_SHADER_CATEGORY,
+                {
+                    .key = "id",
+                }
+            );
             legacy->m_config->addSpecialConfigValue(USER_SHADER_CATEGORY, "from", "");
             legacy->m_config->addSpecialConfigValue(USER_SHADER_CATEGORY, "path", "");
             legacy->m_config->addSpecialConfigValue(USER_SHADER_CATEGORY, "args", "");
@@ -137,7 +148,8 @@ struct State {
         }
         else
         {
-            const auto registerLuaFn = [&](const std::string& name, lua_CFunction func) {
+            const auto registerLuaFn = [&](const std::string& name, lua_CFunction func)
+            {
                 if (!HyprlandAPI::addLuaFunction(Handle, "darkwindow", name, func))
                     throw Efmt("Failed to register Lua function hl.plugin.darwindow.{}", name);
             };
@@ -146,7 +158,9 @@ struct State {
             registerLuaFn("build_window_rule", &LuaCallbacks::buildWindowRule);
         }
 
-        LoadShaders = SP(new Config::Values::CStringValue(LOAD_SHADERS_KEY, "comma separated list of shaders to load, can be empty or \"all\"", "all"));
+        LoadShaders = SP(new Config::Values::CStringValue(
+            LOAD_SHADERS_KEY, "comma separated list of shaders to load, can be empty or \"all\"", "all"
+        ));
         if (!HyprlandAPI::addConfigValueV2(Handle, LoadShaders))
             throw Efmt("Failed to add config value {}", LOAD_SHADERS_KEY);
 
@@ -155,9 +169,7 @@ struct State {
 
     Hyprutils::String::CConstVarList Config_LoadedShaders()
     {
-        return Hyprutils::String::CConstVarList(
-            ((Config::Values::CStringValue*)LoadShaders.get())->value()
-        );
+        return Hyprutils::String::CConstVarList(((Config::Values::CStringValue*) LoadShaders.get())->value());
     }
 
     std::vector<UserShader> Config_UserShaders()
@@ -170,21 +182,27 @@ struct State {
             for (auto& id : std::set<std::string>(ids.begin(), ids.end()))
             {
                 auto from = std::any_cast<Hyprlang::STRING>(
-                    legacy->m_config->getSpecialConfigValue(USER_SHADER_CATEGORY, "from", id.c_str()));
+                    legacy->m_config->getSpecialConfigValue(USER_SHADER_CATEGORY, "from", id.c_str())
+                );
                 auto path = std::any_cast<Hyprlang::STRING>(
-                    legacy->m_config->getSpecialConfigValue(USER_SHADER_CATEGORY, "path", id.c_str()));
+                    legacy->m_config->getSpecialConfigValue(USER_SHADER_CATEGORY, "path", id.c_str())
+                );
                 auto args = std::any_cast<Hyprlang::STRING>(
-                    legacy->m_config->getSpecialConfigValue(USER_SHADER_CATEGORY, "args", id.c_str()));
+                    legacy->m_config->getSpecialConfigValue(USER_SHADER_CATEGORY, "args", id.c_str())
+                );
                 auto transparent = std::any_cast<Hyprlang::INT>(
-                    legacy->m_config->getSpecialConfigValue(USER_SHADER_CATEGORY, "introduces_transparency", id.c_str()));
+                    legacy->m_config->getSpecialConfigValue(USER_SHADER_CATEGORY, "introduces_transparency", id.c_str())
+                );
 
-                shaders.push_back(UserShader{
-                    .Id = id,
-                    .From = from,
-                    .Path = path,
-                    .Args = args,
-                    .IntroducesTransparency = transparent > 0,
-                });
+                shaders.push_back(
+                    UserShader{
+                        .Id = id,
+                        .From = from,
+                        .Path = path,
+                        .Args = args,
+                        .IntroducesTransparency = transparent > 0,
+                    }
+                );
             }
 
             return shaders;
@@ -193,7 +211,8 @@ struct State {
             return UserShaders;
     }
 
-    void RemoveConfigValues() {
+    void RemoveConfigValues()
+    {
         if (auto legacy = Config::Legacy::mgr())
         {
             legacy->m_config->removeSpecialConfigValue(USER_SHADER_CATEGORY, "from");
@@ -207,7 +226,7 @@ struct State {
     }
 
 
-    template <typename... Args>
+    template<typename... Args>
     static std::runtime_error Efmt(std::format_string<Args...> fmt, Args&&... args)
     {
         return std::runtime_error(std::format(fmt, std::forward<Args>(args)...));
@@ -217,17 +236,13 @@ struct State {
     {
         std::string msg = std::string("[Hypr-DarkWindow] ") + err;
         Log::logger->log(Log::ERR, msg);
-        HyprlandAPI::addNotification(
-            Handle,
-            msg,
-            CHyprColor(0xFFFF0000),
-            25'000
-        );
+        HyprlandAPI::addNotification(Handle, msg, CHyprColor(0xFFFF0000), 25'000);
     }
 
     auto HandleError(auto f)
     {
-        return [&](std::string args) {
+        return [&](std::string args)
+        {
             try
             {
                 f(args);
