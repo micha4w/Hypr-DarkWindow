@@ -1,4 +1,5 @@
 #include <unistd.h>
+
 #include "CustomShader.h"
 #include "State.h"
 
@@ -25,7 +26,9 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
             size_t space = args.find(" ");
             if (space == std::string::npos)
                 throw g.Efmt("Expected 2 Arguments: <WINDOW> <SHADER>");
-            g.Manager.ApplyDispatchedShader(g_pCompositor->getWindowByRegex(args.substr(0, space)), args.substr(space + 1));
+
+            auto window = Desktop::viewState()->query().selector(args.substr(0, space)).runWindow();
+            g.Manager.ApplyDispatchedShader(window, args.substr(space + 1));
         }
     );
 
@@ -122,7 +125,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
     );
 
     g.Listeners.push_back(
-        Event::bus()->m_events.window.destroy.listen([&](PHLWINDOW window) { g.Manager.ForgetWindow(window); })
+        Event::bus()->m_events.window.destroy.listen([&](PHLWINDOWREF window) { g.Manager.ForgetWindow(window.lock()); })
     );
 
     g.Listeners.push_back(

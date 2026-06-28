@@ -228,7 +228,7 @@ void ShadeManager::LoadPredefinedShader(const std::string& name)
 
 void ShadeManager::RecheckWindowRules()
 {
-    for (const auto& window : g_pCompositor->m_windows)
+    for (const auto& window : Desktop::viewState()->windows())
         ApplyWindowRuleShader(window);
 }
 
