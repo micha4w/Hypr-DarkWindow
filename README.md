@@ -57,10 +57,16 @@ if hl.plugin.darkwindow ~= nil then
     fade_out_speed = 3
   })
 
-  -- Use a custom shader from a file
+  -- Use a custom shader, see the section below (#custom-shaders) for how to write one 
   hl.plugin.darkwindow.load_shader("chromakeyv2", {
-    --  see the section below (#custom-shaders) for the content of this file
+    -- path to the file, relative to the current lua file
     path = "~/path/to/shader.glsl",
+    -- or write the source inline
+    source = [[
+      void windowShader(inout vec4 color) {
+          color.r = 1.;
+      }
+    ]],
     
     --  default arguments used in all instatiations
     args = {
@@ -89,12 +95,20 @@ if hl.plugin.darkwindow ~= nil then
   -- Uniforms can also be passed on the fly
   hl.window_rule({
     match = { fullscreen = true },
-    ["darkwindow:shade"] = hl.plugin.darkwindow.build_window_rule({
+    ["darkwindow:shade"] = hl.plugin.darkwindow.build_rule_effect({
       shader = "tint",
       args = {
         tintColor = { 0, .3, 0 }
       }
     })
+  })
+
+  -- Same for layers
+  hl.layer_rule({
+    match = { namespace = "waybar" },
+    ["darkwindow:shade"] = hl.plugin.darkwindow.build_rule_effect({
+      shader = "tint",
+    }),
   })
 
   -- Or use a dispatcher

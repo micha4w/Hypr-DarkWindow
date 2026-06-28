@@ -27,11 +27,17 @@ public:
     ShaderInstance* EnsureShader(const std::string& shader);
     void LoadPredefinedShader(const std::string& name);
 
-    void RecheckWindowRules();
-    void ApplyWindowRuleShader(PHLWINDOW window);
-    void ApplyDispatchedShader(PHLWINDOW window, const std::string& shader);
-    void ForgetWindow(PHLWINDOW window);
-    ShadedWindow* GetShaderForWindow(PHLWINDOW window);
+    void RecheckRules();
+
+    template<class ElementT>
+    void ApplyRuleShader(ElementT ele);
+    template<class ElementT>
+    void ApplyDispatchedShader(ElementT ele, const std::string& shader);
+    template<class ElementT>
+    void ForgetElement(ElementT ele);
+    template<class ElementT>
+    ShadedElement* GetShaderForElement(ElementT ele);
+
 
     void PreRenderMonitor(PHLMONITOR monitor);
     void MouseMove();
@@ -39,7 +45,11 @@ public:
 private:
     std::map<std::string, ShaderInstance> m_Shaders;
 
-    std::map<PHLWINDOW, ShadedWindow> m_Windows;
+    std::tuple<std::map<PHLWINDOW, ShadedElement>, std::map<PHLLS, ShadedElement>> m_ShadedElements;
 
-    void windowShaderChanged(decltype(m_Windows)::iterator it);
+    template<class T>
+    std::map<T, ShadedElement>& getShadedElements()
+    {
+        return std::get<std::map<T, ShadedElement>>(m_ShadedElements);
+    }
 };

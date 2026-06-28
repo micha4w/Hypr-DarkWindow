@@ -69,7 +69,7 @@ void SpecialVariables::PrimeUniforms(const SP<CShader>& shader)
     UniformLocations[(uint8_t) MonitorScale] = glGetUniformLocation(shader->program(), "x_MonitorScale");
 }
 
-void SpecialVariables::SetUniforms(ShadedWindow& config, PHLMONITOR monitor, PHLWINDOW window)
+void SpecialVariables::SetUniforms(ShadedElement& config, const UniformVariables& vars)
 {
     GLint loc;
     if (loc = UniformLocations[(size_t) Time]; loc != -1)
@@ -82,7 +82,7 @@ void SpecialVariables::SetUniforms(ShadedWindow& config, PHLMONITOR monitor, PHL
     if (loc = UniformLocations[(size_t) FadeIn]; loc != -1)
     {
         float progress = 1.f;
-        if (config.FadeState == ShadedWindow::FadeIn)
+        if (config.FadeState == ShadedElement::FadeIn)
         {
             auto msPassed =
                 std::chrono::duration_cast<std::chrono::milliseconds>(g.RenderState.Time - config.FadeStartTime).count();
@@ -95,7 +95,7 @@ void SpecialVariables::SetUniforms(ShadedWindow& config, PHLMONITOR monitor, PHL
     if (loc = UniformLocations[(size_t) FadeOut]; loc != -1)
     {
         float progress = 0.f;
-        if (config.FadeState == ShadedWindow::FadeOut)
+        if (config.FadeState == ShadedElement::FadeOut)
         {
             auto ms_passed =
                 std::chrono::duration_cast<std::chrono::milliseconds>(g.RenderState.Time - config.FadeStartTime).count();
@@ -107,17 +107,15 @@ void SpecialVariables::SetUniforms(ShadedWindow& config, PHLMONITOR monitor, PHL
     }
 
     if (loc = UniformLocations[(size_t) WindowSize]; loc != -1)
-    {
-        auto size = window->m_realSize->value();
-        glUniform2f(loc, size.x, size.y);
-    }
+        glUniform2f(loc, vars.WindowSize.x, vars.WindowSize.y);
+
     if (loc = UniformLocations[(size_t) CursorPos]; loc != -1)
     {
-        Vector2D pos = g_pPointerManager->position() - window->m_realPosition->value();
+        Vector2D pos = g_pPointerManager->position() - vars.WindowPos;
         glUniform2f(loc, (float) pos.x, (float) pos.y);
     }
     if (loc = UniformLocations[(size_t) MonitorScale]; loc != -1)
-        glUniform1f(loc, monitor->m_scale);
+        glUniform1f(loc, vars.MonitorScale);
 }
 
 
@@ -137,14 +135,14 @@ void ShaderVariant::PrimeUniforms(const Uniforms& args)
     }
 }
 
-void ShaderVariant::SetUniforms(ShadedWindow& config, PHLMONITOR monitor, PHLWINDOW window) noexcept
+void ShaderVariant::SetUniforms(ShadedElement& config, const UniformVariables& vars) noexcept
 {
     GLint prog;
     glGetIntegerv(GL_CURRENT_PROGRAM, &prog);
 
     glUseProgram(Shader->program());
 
-    Specials.SetUniforms(config, monitor, window);
+    Specials.SetUniforms(config, vars);
 
     for (auto& [name, values] : config.ActiveShader->Args)
     {
@@ -263,4 +261,75 @@ ShaderVariant& CompiledShaders::GetOrCreateVariant(uint8_t features, std::functi
         FailedCompilation = true;
         throw;
     }
+}
+
+
+void ShadedElement::Changed()
+{
+    ShaderInstance* prevConfigured = ConfiguredShader;
+    ConfiguredShader = nullptr;
+
+    if (RuleShader && DispatchShader)
+    {
+        if (RuleShader->ID != DispatchShader->ID)
+            ConfiguredShader = DispatchShader;
+    }
+    else if (DispatchShader)
+        ConfiguredShader = DispatchShader;
+    else if (RuleShader)
+        ConfiguredShader = RuleShader;
+
+    if (prevConfigured == ConfiguredShader)
+    {
+        ActiveShader = FadingOutShader ? FadingOutShader : ConfiguredShader;
+        return;
+    }
+
+    auto prevStartTime = FadeStartTime;
+    auto prevFadeState = FadeState;
+    if (!FadingOutShader)
+    {
+        auto now = Time::steadyNow();
+        StartTime = now;
+        FadeStartTime = now;
+        FadeState = ShadedElement::None;
+
+        if (prevConfigured && prevConfigured->FadeOutSpeed > 0.f)
+        {
+            FadingOutShader = prevConfigured;
+            FadeState = ShadedElement::FadeOut;
+
+            if (prevFadeState == ShadedElement::FadeIn)
+            {
+                auto ms_passed = std::chrono::duration_cast<std::chrono::milliseconds>(now - prevStartTime).count();
+                auto progress = 1.f - ms_passed / (FadingOutShader->FadeInSpeed * 100.f);
+                if (progress < 0.f)
+                    progress = 0.f;
+
+                FadeStartTime = now - std::chrono::milliseconds((long) (progress * FadingOutShader->FadeOutSpeed * 100.f));
+            }
+        }
+        else if (ConfiguredShader && ConfiguredShader->FadeInSpeed > 0.f)
+            FadeState = ShadedElement::FadeIn;
+    }
+    else if (FadingOutShader == ConfiguredShader)
+    {
+        auto now = Time::steadyNow();
+        FadingOutShader = nullptr;
+        FadeStartTime = now;
+        FadeState = ShadedElement::None;
+
+        if (prevFadeState == ShadedElement::FadeOut && ConfiguredShader->FadeInSpeed > 0.f)
+        {
+            auto ms_passed = std::chrono::duration_cast<std::chrono::milliseconds>(now - prevStartTime).count();
+            auto progress = 1.f - ms_passed / (ConfiguredShader->FadeOutSpeed * 100.f);
+            if (progress < 0.f)
+                progress = 0.f;
+
+            FadeStartTime = now - std::chrono::milliseconds((long) (progress * ConfiguredShader->FadeInSpeed * 100.f));
+            FadeState = ShadedElement::FadeIn;
+        }
+    }
+
+    ActiveShader = FadingOutShader ? FadingOutShader : ConfiguredShader;
 }

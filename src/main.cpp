@@ -103,11 +103,11 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
                 Log::logger->log(Log::INFO, "[Hypr-DarkWindow] Compiled all shaders");
                 try
                 {
-                    g.Manager.RecheckWindowRules();
+                    g.Manager.RecheckRules();
                 }
                 catch (const std::exception& ex)
                 {
-                    g.NotifyError(std::string("Failed to apply window rule shader: ") + ex.what());
+                    g.NotifyError(std::string("Failed to apply window/layer rule shader: ") + ex.what());
                 }
 
                 g.InConfigLoad = false;
@@ -124,7 +124,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 
                 try
                 {
-                    g.Manager.ApplyWindowRuleShader(window);
+                    g.Manager.ApplyRuleShader(window);
                 }
                 catch (const std::exception& ex)
                 {
@@ -135,8 +135,29 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
     );
 
     g.Listeners.push_back(
-        Event::bus()->m_events.window.destroy.listen([&](PHLWINDOW window) { g.Manager.ForgetWindow(window); })
+        Event::bus()->m_events.window.destroy.listen([&](PHLWINDOW window) { g.Manager.ForgetElement(window); })
     );
+
+    g.Listeners.push_back(
+        Event::bus()->m_events.layer.updateRules.listen(
+            [&](PHLLS ls)
+            {
+                if (g.InConfigLoad)
+                    return;
+
+                try
+                {
+                    g.Manager.ApplyRuleShader(ls);
+                }
+                catch (const std::exception& ex)
+                {
+                    g.NotifyError(std::string("Failed to apply layer rule shader: ") + ex.what());
+                }
+            }
+        )
+    );
+
+    g.Listeners.push_back(Event::bus()->m_events.layer.closed.listen([&](PHLLS ls) { g.Manager.ForgetElement(ls); }));
 
     g.Listeners.push_back(
         Event::bus()->m_events.render.pre.listen([&](PHLMONITOR monitor) { g.Manager.PreRenderMonitor(monitor); })

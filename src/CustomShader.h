@@ -5,7 +5,7 @@
 #include <map>
 #include <string>
 
-struct ShadedWindow;
+struct ShadedElement;
 
 enum IntroducesTransparency : bool
 {
@@ -13,6 +13,12 @@ enum IntroducesTransparency : bool
     Yes = true
 };
 using Uniforms = std::map<std::string, std::vector<float>>;
+struct UniformVariables
+{
+    float MonitorScale;
+    Vector2D WindowSize, WindowPos;
+};
+
 
 struct SpecialVariables
 {
@@ -31,7 +37,7 @@ struct SpecialVariables
 
     static std::string EditSource(const std::string& originalSource, std::string pixelGetter);
     void PrimeUniforms(const SP<CShader>& shader);
-    void SetUniforms(ShadedWindow& props, PHLMONITOR monitor, PHLWINDOW window);
+    void SetUniforms(ShadedElement& config, const UniformVariables& vars);
 };
 
 struct ShaderVariant
@@ -42,7 +48,7 @@ struct ShaderVariant
     SpecialVariables Specials;
 
     void PrimeUniforms(const Uniforms& args);
-    void SetUniforms(ShadedWindow& props, PHLMONITOR monitor, PHLWINDOW window) noexcept;
+    void SetUniforms(ShadedElement& config, const UniformVariables& vars) noexcept;
 };
 
 struct CompiledShaders
@@ -77,7 +83,7 @@ struct ShaderInstance
 };
 
 
-struct ShadedWindow
+struct ShadedElement
 {
     ShaderInstance* RuleShader = nullptr;
     ShaderInstance* DispatchShader = nullptr;
@@ -94,4 +100,6 @@ struct ShadedWindow
         None,
         FadeOut,
     } FadeState;
+
+    void Changed();
 };

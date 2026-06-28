@@ -8,6 +8,8 @@
 #include <sstream>
 #include <vector>
 
+#include "CustomShader.h"
+
 // All hyprland includes are in this file so the private overwriting works correctly
 #define private public
 #include <hyprland/src/Compositor.hpp>
@@ -48,6 +50,7 @@
 struct State
 {
     using WindowRuleEffect = Desktop::Rule::CWindowRuleEffectContainer::storageType;
+    using LayerRuleEffect = Desktop::Rule::CLayerRuleEffectContainer::storageType;
 
     struct UserShader
     {
@@ -66,12 +69,22 @@ struct State
     HANDLE Handle = nullptr;
     ShadeManager Manager;
     SP<Config::Values::IValue> LoadShaders;
-    WindowRuleEffect RuleShade;
+    WindowRuleEffect WindowRuleShade;
+    LayerRuleEffect LayerRuleShade;
     std::vector<UserShader> UserShaders;
 
     bool InConfigLoad = false;
 
     std::vector<CHyprSignalListener> Listeners;
+
+    WindowRuleEffect& GetRule(const PHLWINDOW& _)
+    {
+        return WindowRuleShade;
+    }
+    LayerRuleEffect& GetRule(const PHLLS& _)
+    {
+        return LayerRuleShade;
+    }
 
     void Init(HANDLE handle)
     {
@@ -90,9 +103,11 @@ struct State
 
     struct
     {
-        bool Ignore = true;
-        WP<Render::ITexture> BlurredBG;
+        bool Active = false;
+        WP<Render::ITexture> Texture;
+        ShadedElement* ShaderConfig;
         Time::steady_tp Time;
+        UniformVariables Uniforms;
     } RenderState;
 
     struct Hook
@@ -157,7 +172,8 @@ struct State
             };
             registerLuaFn("load_shader", &LuaCallbacks::loadShader);
             registerLuaFn("dsp_shade", &LuaCallbacks::shade);
-            registerLuaFn("build_window_rule", &LuaCallbacks::buildWindowRule);
+            registerLuaFn("build_rule_effect", &LuaCallbacks::buildRule);
+            registerLuaFn("build_window_rule", &LuaCallbacks::buildRule);
         }
 
         LoadShaders = SP(new Config::Values::CStringValue(
@@ -166,7 +182,8 @@ struct State
         if (!HyprlandAPI::addConfigValueV2(Handle, LoadShaders))
             throw Efmt("Failed to add config value {}", LOAD_SHADERS_KEY);
 
-        RuleShade = Desktop::Rule::windowEffects()->registerEffect("darkwindow:shade");
+        WindowRuleShade = Desktop::Rule::windowEffects()->registerEffect("darkwindow:shade");
+        LayerRuleShade = Desktop::Rule::layerEffects()->registerEffect("darkwindow:shade");
     }
 
     Hyprutils::String::CConstVarList Config_LoadedShaders()
@@ -224,7 +241,8 @@ struct State
             legacy->m_config->removeSpecialCategory(USER_SHADER_CATEGORY);
         }
 
-        Desktop::Rule::windowEffects()->unregisterEffect(RuleShade);
+        Desktop::Rule::windowEffects()->unregisterEffect(WindowRuleShade);
+        Desktop::Rule::layerEffects()->unregisterEffect(LayerRuleShade);
     }
 
 

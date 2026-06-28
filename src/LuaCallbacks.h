@@ -9,5 +9,5 @@ namespace LuaCallbacks
 {
     int loadShader(lua_State* L);
     int shade(lua_State* L);
-    int buildWindowRule(lua_State* L);
+    int buildRule(lua_State* L);
 }

@@ -263,14 +263,14 @@ int LuaCallbacks::shade(lua_State* L)
 }
 
 
-int LuaCallbacks::buildWindowRule(lua_State* L)
+int LuaCallbacks::buildRule(lua_State* L)
 {
     if (lua_gettop(L) != 1 || !lua_istable(L, 1))
-        return HyprLua::configError(L, "darkwindow.build_window_rule: expected a single table { ...shader } as argument");
+        return HyprLua::configError(L, "darkwindow.build_rule: expected a single table { ...shader } as argument");
 
     auto shaderResult = luaShaderToString(L, 1);
     if (!shaderResult)
-        return HyprLua::configError(L, "darkwindow.build_window_rule: invalid shader: " + shaderResult.error());
+        return HyprLua::configError(L, "darkwindow.build_rule: invalid shader: " + shaderResult.error());
 
     lua_pushstring(L, shaderResult.value().c_str());
     return 1;
