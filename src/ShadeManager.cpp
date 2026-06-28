@@ -258,10 +258,10 @@ void ShadeManager::SetupFailedCompilationShader()
 
 void ShadeManager::RecheckRules()
 {
-    for (const auto& window : g_pCompositor->m_windows)
+    for (const auto& window : Desktop::viewState()->windows())
         ApplyRuleShader(window);
 
-    for (const auto& ls : g_pCompositor->m_layers)
+    for (const auto& ls : Desktop::viewState()->layers())
         ApplyRuleShader(ls);
 }
 

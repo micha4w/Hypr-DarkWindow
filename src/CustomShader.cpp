@@ -111,7 +111,7 @@ void SpecialVariables::SetUniforms(ShadedElement& config, const UniformVariables
 
     if (loc = UniformLocations[(size_t) CursorPos]; loc != -1)
     {
-        Vector2D pos = g_pPointerManager->position() - vars.WindowPos;
+        Vector2D pos = Pointer::mgr()->position() - vars.WindowPos;
         glUniform2f(loc, (float) pos.x, (float) pos.y);
     }
     if (loc = UniformLocations[(size_t) MonitorScale]; loc != -1)

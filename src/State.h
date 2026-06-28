@@ -20,9 +20,10 @@
 #include <hyprland/src/config/values/types/StringValue.hpp>
 #include <hyprland/src/desktop/DesktopTypes.hpp>
 #include <hyprland/src/desktop/state/FocusState.hpp>
+#include <hyprland/src/desktop/state/ViewState.hpp>
 #include <hyprland/src/event/EventBus.hpp>
 #include <hyprland/src/helpers/time/Time.hpp>
-#include <hyprland/src/managers/PointerManager.hpp>
+#include <hyprland/src/pointer/PointerManager.hpp>
 #include <hyprland/src/plugins/PluginAPI.hpp>
 #include <hyprland/src/render/Renderer.hpp>
 #include <hyprland/src/render/pass/Pass.hpp>
