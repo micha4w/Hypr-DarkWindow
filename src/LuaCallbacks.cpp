@@ -207,7 +207,7 @@ static int dispatchedShade(lua_State* L)
     PHLWINDOW window = nullptr;
     if (!lua_isnil(L, lua_upvalueindex(2)))
     {
-        window = Desktop::viewState()->query().selector(lua_tostring(L, lua_upvalueindex(2))).runWindow();
+        window = g_pCompositor->getWindowByRegex(lua_tostring(L, lua_upvalueindex(2)));
         if (!window)
             return HyprLua::dispatcherError(
                 L, "darkwindow.<dispatched shade>: window not found", eActionErrorLevel::ERROR, eActionErrorCode::NOT_FOUND
