@@ -40,7 +40,15 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         g.Handle, "invertwindow", [&](std::string args) { return shadeSpecific(args + " invert"); }
     );
 
-    g.Listeners.push_back(Event::bus()->m_events.config.preReload.listen([&] { g.UserShaders.clear(); }));
+    g.Listeners.push_back(
+        Event::bus()->m_events.config.preReload.listen(
+            [&]
+            {
+                g.InConfigLoad = true;
+                g.UserShaders.clear();
+            }
+        )
+    );
 
     g.Listeners.push_back(
         Event::bus()->m_events.config.reloaded.listen(
@@ -101,6 +109,8 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
                 {
                     g.NotifyError(std::string("Failed to apply window rule shader: ") + ex.what());
                 }
+
+                g.InConfigLoad = false;
             }
         )
     );
@@ -109,6 +119,9 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
         Event::bus()->m_events.window.updateRules.listen(
             [&](PHLWINDOW window)
             {
+                if (g.InConfigLoad)
+                    return;
+
                 try
                 {
                     g.Manager.ApplyWindowRuleShader(window);

@@ -69,6 +69,8 @@ struct State
     WindowRuleEffect RuleShade;
     std::vector<UserShader> UserShaders;
 
+    bool InConfigLoad = false;
+
     std::vector<CHyprSignalListener> Listeners;
 
     void Init(HANDLE handle)
