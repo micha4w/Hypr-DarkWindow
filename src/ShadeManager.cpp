@@ -149,14 +149,10 @@ ShaderInstance* ShadeManager::AddShader(ShaderDefinition&& def)
             source += std::string(std::istreambuf_iterator(file), {});
 
             shader.Compiled = SP(new CompiledShaders{ .CustomSource = source });
-            shader.Compiled->TestCompilation(def.Args);
         }
 
         if (def.Source != "")
-        {
             shader.Compiled = SP(new CompiledShaders{ .CustomSource = def.Source });
-            shader.Compiled->TestCompilation(def.Args);
-        }
 
         if (!shader.Compiled)
             throw g.Efmt("One of .from, .path, or .source has to be set");
@@ -177,8 +173,17 @@ ShaderInstance* ShadeManager::AddShader(ShaderDefinition&& def)
     if (def.AnimationInterval)
         shader.AnimationInterval = *def.AnimationInterval;
 
-    for (auto& [_, variant] : shader.Compiled->FragVariants)
-        variant.PrimeUniforms(shader.Args);
+    try
+    {
+        shader.Compiled->TestCompilation(shader.Args);
+
+        for (auto& [_, variant] : shader.Compiled->FragVariants)
+            variant.PrimeUniforms(shader.Args);
+    }
+    catch (const std::exception& ex)
+    {
+        g.NotifyError("Failed to create shader " + def.ID + ": " + ex.what());
+    }
 
     auto* ptr = &(m_Shaders[def.ID] = std::move(shader));
     ptr->Compiled->Instances.push_back(ptr);
@@ -202,12 +207,7 @@ ShaderInstance* ShadeManager::EnsureShader(const std::string& shader)
         inst = &found->second;
     }
     else
-    {
         inst = AddShader(ShaderDefinition::Parse(shader));
-    }
-
-    if (inst->Compiled->FailedCompilation)
-        throw g.Efmt("Shader {} failed to compile in a previous iteration, skipping", shader);
 
     return inst;
 }
@@ -243,6 +243,16 @@ void ShadeManager::LoadPredefinedShader(const std::string& name)
 
         add(this, *source);
     }
+}
+
+void ShadeManager::SetupFailedCompilationShader()
+{
+    if (m_FailedCompilation.ActiveShader)
+        return;
+
+    auto it = m_Shaders.find("compilation_failed");
+    if (it != m_Shaders.end())
+        m_FailedCompilation.ActiveShader = &it->second;
 }
 
 
@@ -331,7 +341,13 @@ ShadedElement* ShadeManager::GetShaderForElement(ElementT ele)
 {
     auto& eles = getShadedElements<ElementT>();
     auto it = eles.find(ele);
-    return it != eles.end() && it->second.ActiveShader ? &it->second : nullptr;
+    if (it == eles.end() || !it->second.ActiveShader)
+        return nullptr;
+
+    if (it->second.ActiveShader->Compiled->FailedCompilation)
+        return m_FailedCompilation.ActiveShader ? &m_FailedCompilation : nullptr;
+
+    return &it->second;
 }
 template ShadedElement* ShadeManager::GetShaderForElement(PHLLS ele);
 template ShadedElement* ShadeManager::GetShaderForElement(PHLWINDOW ele);

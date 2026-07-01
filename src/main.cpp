@@ -1,4 +1,5 @@
 #include <unistd.h>
+
 #include "CustomShader.h"
 #include "State.h"
 
@@ -100,7 +101,10 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
                     }
                 }
 
+                g.Manager.SetupFailedCompilationShader();
+
                 Log::logger->log(Log::INFO, "[Hypr-DarkWindow] Compiled all shaders");
+
                 try
                 {
                     g.Manager.RecheckRules();

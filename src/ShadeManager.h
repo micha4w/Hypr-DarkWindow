@@ -26,6 +26,7 @@ public:
     ShaderInstance* AddShader(ShaderDefinition&& def);
     ShaderInstance* EnsureShader(const std::string& shader);
     void LoadPredefinedShader(const std::string& name);
+    void SetupFailedCompilationShader();
 
     void RecheckRules();
 
@@ -45,6 +46,7 @@ public:
 private:
     std::map<std::string, ShaderInstance> m_Shaders;
 
+    ShadedElement m_FailedCompilation;
     std::tuple<std::map<PHLWINDOW, ShadedElement>, std::map<PHLLS, ShadedElement>> m_ShadedElements;
 
     template<class T>

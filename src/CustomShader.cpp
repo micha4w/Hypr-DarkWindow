@@ -222,13 +222,21 @@ void main() {
 
     Render::GL::g_pHyprOpenGL->makeEGLCurrent();
 
-    if (!testShader->createProgram(Render::GL::g_pHyprOpenGL->m_shaders->TEXVERTSRC, testFrag, true, true))
+    try
     {
-        Log::logger->log(Log::ERR, "[Hypr-DarkWindow] Failed to compile this Shader: {}", testFrag);
-        throw g.Efmt("Failed to compile Shader with Test Source, check logs for details");
-    }
+        if (!testShader->createProgram(Render::GL::g_pHyprOpenGL->m_shaders->TEXVERTSRC, testFrag, true, true))
+        {
+            Log::logger->log(Log::ERR, "[Hypr-DarkWindow] Failed to compile this Shader: {}", testFrag);
+            throw g.Efmt("Failed to compile Shader with Test Source, check logs for details");
+        }
 
-    ShaderVariant{ .Shader = testShader }.PrimeUniforms(args);
+        ShaderVariant{ .Shader = testShader }.PrimeUniforms(args);
+    }
+    catch (...)
+    {
+        FailedCompilation = true;
+        throw;
+    }
 }
 
 ShaderVariant& CompiledShaders::GetOrCreateVariant(uint8_t features, std::function<SP<CShader>()> create)

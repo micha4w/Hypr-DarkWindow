@@ -54,9 +54,6 @@ HOOK_FUNCTION(
     });
     g.RenderState.ShaderConfig = getShaderForSurfacePass(element.get());
 
-    if (g.RenderState.ShaderConfig && g.RenderState.ShaderConfig->ActiveShader->Compiled->FailedCompilation)
-        g.RenderState.ShaderConfig = nullptr;
-
     if (g.RenderState.ShaderConfig)
     {
         g.RenderState.Texture = element->m_data.texture;
