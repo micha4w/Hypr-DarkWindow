@@ -57,7 +57,7 @@ if hl.plugin.darkwindow ~= nil then
     fade_out_speed = 3
   })
 
-  -- Use a custom shader, see the section below (#custom-shaders) for how to write one 
+  -- Use a custom shader, see the section below (#custom-shaders) for how to write one
   hl.plugin.darkwindow.load_shader("chromakeyv2", {
     -- path to the file, relative to the current lua file
     path = "~/path/to/shader.glsl",
@@ -67,7 +67,7 @@ if hl.plugin.darkwindow ~= nil then
           color.r = 1.;
       }
     ]],
-    
+
     --  default arguments used in all instatiations
     args = {
       wow = { 1.0, 0 }
@@ -184,19 +184,19 @@ You can use these variables anywhere in your shader code.
 Do not add the uniform declarations.
 This plugin will automatically detect the used variables and set them at each render.
 
-| **Name**                                                                                      | **Type**                        | **Description**                                                                                                                                      |
-| --------------------------------------------------------------------------------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **x_Time**                                                                                    | `float`                         | Time in seconds since the Shader was applied (mod `animation_interval`)<br>_using this will cause the entire window to rerender every frame_         |
-| How much the Shader has Faded In, stays 1 after fading in finishes, check out `fade_in_speed` |
-| **x_FadeOut**                                                                                 | `float` (0 -> 1)                | How much the Shader has Faded Out, is 0 before starting to fade out, check out `fade_out_speed`                                                      |
-| **x_PixelPos**                                                                                | `vec2`                          | Position of the current pixel in window space<br>(top left of the window is [0,0], monitor scaling already applied)                                  |
-| **x_CursorPos**                                                                               | `vec2`                          | Position of the cursor, same coordinate space as `x_PixelPos`<br>_using this will cause the entire window to rerender every time the mouse is moved_ |
-| **x_WindowSize**                                                                              | `vec2`                          | Size of the current window, same scaling as `x_PixelPos`                                                                                             |
-| **x_MonitorScale**                                                                            | `float`                         | Scaling of the monitor as seen in `hyprctl monitors`                                                                                                 |
-| **x_Texture**                                                                                 | `fn (vec2 texCoord) -> vec4`    | Gets the color of a pixel<br>(the difference of using this vs. using `texture(x_Tex, texCoord)` is that this function handles opaque windows)        |
-| **x_TextureOffset**                                                                           | `fn (vec2 pixelOffset) -> vec4` | Gets the color at a pixel offset to the currently drawn pixel                                                                                        |
-| **x_Tex**                                                                                     | `sampler2D`                     | The texture that gets sampled from                                                                                                                   |
-| **x_TexCoord**                                                                                | `vec2`                          | The coordinate that was used to get the current pixel color                                                                                          |
+| **Name**            | **Type**                        | **Description**                                                                                                                                      |
+| ------------------- | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **x_Time**          | `float`                         | Time in seconds since the Shader was applied (mod `animation_interval`)<br>_using this will cause the entire window to rerender every frame_         |
+| **x_FadeIn**        | `float` (0 -> 1)                | How much the Shader has Faded In, stays 1 after fading in finishes, check out `fade_in_speed`                                                        |
+| **x_FadeOut**       | `float` (0 -> 1)                | How much the Shader has Faded Out, is 0 before starting to fade out, check out `fade_out_speed`                                                      |
+| **x_PixelPos**      | `vec2`                          | Position of the current pixel in window space<br>(top left of the window is [0,0], monitor scaling already applied)                                  |
+| **x_CursorPos**     | `vec2`                          | Position of the cursor, same coordinate space as `x_PixelPos`<br>_using this will cause the entire window to rerender every time the mouse is moved_ |
+| **x_WindowSize**    | `vec2`                          | Size of the current window, same scaling as `x_PixelPos`                                                                                             |
+| **x_MonitorScale**  | `float`                         | Scaling of the monitor as seen in `hyprctl monitors`                                                                                                 |
+| **x_Texture**       | `fn (vec2 texCoord) -> vec4`    | Gets the color of a pixel<br>(the difference of using this vs. using `texture(x_Tex, texCoord)` is that this function handles opaque windows)        |
+| **x_TextureOffset** | `fn (vec2 pixelOffset) -> vec4` | Gets the color at a pixel offset to the currently drawn pixel                                                                                        |
+| **x_Tex**           | `sampler2D`                     | The texture that gets sampled from                                                                                                                   |
+| **x_TexCoord**      | `vec2`                          | The coordinate that was used to get the current pixel color                                                                                          |
 
 ## Installation
 
