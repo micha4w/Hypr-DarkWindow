@@ -12,6 +12,7 @@
 
 // All hyprland includes are in this file so the private overwriting works correctly
 #define private public
+#define protected public
 #include <hyprland/src/Compositor.hpp>
 #include <hyprland/src/config/legacy/ConfigManager.hpp>
 #include <hyprland/src/config/lua/bindings/LuaBindingsInternal.hpp>
@@ -29,6 +30,7 @@
 #include <hyprland/src/render/pass/Pass.hpp>
 #include <hyprland/src/render/pass/PassElement.hpp>
 #include <hyprland/src/render/pass/SurfacePassElement.hpp>
+#undef protected
 #undef private
 
 #include "LuaCallbacks.h"
