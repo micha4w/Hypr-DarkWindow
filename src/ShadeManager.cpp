@@ -8,6 +8,7 @@
 
 static bool shouldRender(PHLLS ls, PHLMONITOR monitor)
 {
+    // CMonitor::damage will check for intersection
     return true;
 }
 
@@ -418,7 +419,7 @@ void ShadeManager::PreRenderMonitor(PHLMONITOR monitor)
                 if (auto box = ele->logicalBox())
                 {
                     CBox damageBox = box->copy().translate(-monitor->m_position).scale(monitor->m_scale).round();
-                    monitor->addDamage(*box);
+                    monitor->addDamage(damageBox);
                 }
             }
 
