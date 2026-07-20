@@ -166,7 +166,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
     g.Listeners.push_back(Event::bus()->m_events.layer.closed.listen([&](PHLLS ls) { g.Manager.ForgetElement(ls); }));
 
     g.Listeners.push_back(
-        Event::bus()->m_events.render.pre.listen([&](PHLMONITOR monitor) { g.Manager.PreRenderMonitor(monitor); })
+        Event::bus()->m_events.render.preChecks.listen([&](PHLMONITOR monitor) { g.Manager.PreRenderMonitor(monitor); })
     );
 
     g.Listeners.push_back(Event::bus()->m_events.input.mouse.move.listen([&] { g.Manager.MouseMove(); }));
