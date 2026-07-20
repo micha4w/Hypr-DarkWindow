@@ -391,6 +391,12 @@ void ShadeManager::PreRenderMonitor(PHLMONITOR monitor)
 
                 break;
             case ShadedElement::None:
+                if (config.NeedsDamageTick)
+                {
+                    config.NeedsDamageTick = false;
+                    needsDamage = true;
+                }
+
                 break;
             case ShadedElement::FadeOut:
                 needsDamage = true;
@@ -410,6 +416,7 @@ void ShadeManager::PreRenderMonitor(PHLMONITOR monitor)
                     config.FadeStartTime = g.RenderState.Time;
                     config.FadeState =
                         config.ConfiguredShader->FadeInSpeed > 0.f ? ShadedElement::FadeIn : ShadedElement::None;
+                    config.NeedsDamageTick = config.FadeState == ShadedElement::None;
                 }
                 break;
             }

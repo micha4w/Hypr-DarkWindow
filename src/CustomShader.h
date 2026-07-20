@@ -77,9 +77,9 @@ struct ShaderInstance
     SP<CompiledShaders> Compiled;
     Uniforms Args;
 
-    IntroducesTransparency Transparency;
-    float FadeInSpeed, FadeOutSpeed;
-    float AnimationInterval;
+    IntroducesTransparency Transparency = IntroducesTransparency::No;
+    float FadeInSpeed = 0.f, FadeOutSpeed = 0.f;
+    float AnimationInterval = 0.f;
 };
 
 
@@ -94,6 +94,8 @@ struct ShadedElement
 
     Time::steady_tp StartTime;
     Time::steady_tp FadeStartTime;
+    bool NeedsDamageTick = false;
+
     enum
     {
         FadeIn,
