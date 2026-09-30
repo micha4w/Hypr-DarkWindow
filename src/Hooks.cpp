@@ -14,7 +14,7 @@ static ShadedElement* getShaderForSurfacePass(CSurfacePassElement* element)
     return nullptr;
 }
 
-HOOK_FUNCTION(Desktop::View::, CWindowPresentation, opaque, bool, (Desktop::View::CWindowPresentation* thisptr))
+HOOK_FUNCTION(Desktop::View::, CWindowPresentation, opaque, bool, (const Desktop::View::CWindowPresentation* thisptr))
 {
     auto config = g.Manager.GetShaderForElement(thisptr->m_window.m_self.lock());
     if (config && config->ActiveShader->Transparency)
@@ -45,13 +45,16 @@ HOOK_FUNCTION(
     IElementRenderer,
     drawSurface,
     void,
-    (void* thisptr, WP<CSurfacePassElement> element, const CRegion& damage)
+    (Render::IElementRenderer * thisptr, WP<CSurfacePassElement> element, const CRegion& damage)
 )
 {
-    Hyprutils::Utils::CScopeGuard _state([&] {
-        g.RenderState.ShaderConfig = nullptr;
-        g.RenderState.Texture = nullptr;
-    });
+    Hyprutils::Utils::CScopeGuard _state(
+        [&]
+        {
+            g.RenderState.ShaderConfig = nullptr;
+            g.RenderState.Texture = nullptr;
+        }
+    );
     g.RenderState.ShaderConfig = getShaderForSurfacePass(element.get());
 
     if (g.RenderState.ShaderConfig)
@@ -91,13 +94,12 @@ HOOK_FUNCTION(
     original(thisptr, tex, box, data);
 }
 
-
 HOOK_FUNCTION(
     Render::GL::,
     CHyprOpenGLImpl,
     getShaderVariant,
     WP<CShader>,
-    (Render::GL::CHyprOpenGLImpl * thisptr, Render::ePreparedFragmentShader frag, Render::SShaderVariant& variant)
+    (Render::GL::CHyprOpenGLImpl * thisptr, Render::ePreparedFragmentShader frag, const Render::SShaderVariant& variant)
 )
 {
     if (!g.RenderState.Active || frag != Render::SH_FRAG_SURFACE)
