@@ -104,7 +104,7 @@ struct State
         {
             NotifyError("Failed to load, mismatched versions! (see logs)");
             throw Efmt(
-                "[Hypr-DarkWindow] version mismatch, built against {}, running compositor {}", CLIENT_HASH, COMPOSITOR_HASH
+                "Hypr-DarkWindow", "version mismatch, built against {}, running compositor {}", CLIENT_HASH, COMPOSITOR_HASH
             );
         }
     }
@@ -195,14 +195,13 @@ struct State
 
     void NotifyError(const std::string& err)
     {
-        std::string msg = std::string("[Hypr-DarkWindow] ") + err;
-        Log::logger->log(Log::ERR, msg);
-        HyprlandAPI::addNotification(Handle, msg, CHyprColor(0xFFFF0000), 25'000);
+        Log::logger->log(Log::ERR, "Hypr-DarkWindow", err);
+        HyprlandAPI::addNotification(Handle, "[Hypr-DarkWindow] " + err, CHyprColor(0xFFFF0000), 25'000);
     }
 
     auto HandleError(auto f)
     {
-        return [&](std::string args)
+        return [this, f](std::string args)
         {
             try
             {

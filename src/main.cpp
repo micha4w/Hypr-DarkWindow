@@ -7,11 +7,11 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 {
     g.Init(handle);
 
-    Log::logger->log(Log::INFO, "[Hypr-DarkWindow] Loading Plugin");
+    Log::logger->log(Log::INFO, "Hypr-DarkWindow", "Loading Plugin");
 
     if (!Render::GL::g_pHyprOpenGL->m_shadersInitialized)
     {
-        Log::logger->log(Log::INFO, "[Hypr-DarkWindow] Forcing shader initialization");
+        Log::logger->log(Log::INFO, "Hypr-DarkWindow", "Forcing shader initialization");
         Render::GL::g_pHyprOpenGL->initShaders();
     }
 
@@ -19,9 +19,9 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
     g.HookFunctions();
 
     const auto shade =
-        g.HandleError([&](std::string args) { g.Manager.ApplyDispatchedShader(Desktop::focusState()->window(), args); });
+        g.HandleError([](std::string args) { g.Manager.ApplyDispatchedShader(Desktop::focusState()->window(), args); });
     const auto shadeSpecific = g.HandleError(
-        [&](std::string args)
+        [](std::string args)
         {
             size_t space = args.find(" ");
             if (space == std::string::npos)
@@ -63,7 +63,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
                 {
                     try
                     {
-                        Log::logger->log(Log::INFO, "[Hypr-DarkWindow] Loading predefined shader with id: {}", name);
+                        Log::logger->log(Log::INFO, "Hypr-DarkWindow", "Loading predefined shader with id: {}", name);
                         g.Manager.LoadPredefinedShader(std::string(name));
                     }
                     catch (const std::exception& ex)
@@ -76,7 +76,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
                 {
                     try
                     {
-                        Log::logger->log(Log::INFO, "[Hypr-DarkWindow] Loading custom shader with id: {}", shader.Id);
+                        Log::logger->log(Log::INFO, "Hypr-DarkWindow", "Loading custom shader with id: {}", shader.Id);
 
                         std::string absPath = !shader.Path.empty()
                                                   ? absolutePath(shader.Path, Config::mgr()->getMainConfigPath())
@@ -102,7 +102,7 @@ APICALL EXPORT PLUGIN_DESCRIPTION_INFO PLUGIN_INIT(HANDLE handle)
 
                 g.Manager.SetupFailedCompilationShader();
 
-                Log::logger->log(Log::INFO, "[Hypr-DarkWindow] Compiled all shaders");
+                Log::logger->log(Log::INFO, "Hypr-DarkWindow", "Compiled all shaders");
 
                 try
                 {
