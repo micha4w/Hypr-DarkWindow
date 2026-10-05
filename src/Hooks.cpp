@@ -27,7 +27,7 @@ HOOK_FUNCTION(
         // so Hyprland does not try to optimize away the drawing of the background
         return false;
 
-    return original(thisptr);
+    return trampoline(thisptr, presentation);
 }
 
 HOOK_FUNCTION(
@@ -49,7 +49,7 @@ HOOK_FUNCTION(
         }
     }
 
-    return original(thisptr, ctx, damage_);
+    return trampoline(thisptr, ctx, damage_);
 }
 
 HOOK_FUNCTION(
@@ -85,7 +85,7 @@ HOOK_FUNCTION(
         }
     }
 
-    original(thisptr, ctx, element, damage);
+    trampoline(thisptr, ctx, element, damage);
 }
 
 HOOK_FUNCTION(
@@ -104,7 +104,7 @@ HOOK_FUNCTION(
     g.RenderState.Active = g.RenderState.ShaderConfig && g.RenderState.Texture == tex;
     Hyprutils::Utils::CScopeGuard _active([&] { g.RenderState.Active = false; });
 
-    original(thisptr, ctx, tex, box, data);
+    trampoline(thisptr, ctx, tex, box, data);
 }
 
 HOOK_FUNCTION(
@@ -116,7 +116,7 @@ HOOK_FUNCTION(
 )
 {
     if (!g.RenderState.Active || frag != Render::SH_FRAG_SURFACE)
-        return original(thisptr, frag, variant);
+        return trampoline(thisptr, frag, variant);
 
     auto shaders = g.RenderState.ShaderConfig->ActiveShader;
     try
@@ -140,6 +140,6 @@ HOOK_FUNCTION(
     catch (const std::exception& ex)
     {
         g.NotifyError(std::string("Failed to apply custom shader: ") + ex.what());
-        return original(thisptr, frag, variant);
+        return trampoline(thisptr, frag, variant);
     }
 }
