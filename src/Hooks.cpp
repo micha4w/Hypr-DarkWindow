@@ -14,7 +14,13 @@ static ShadedElement* getShaderForSurfacePass(CSurfacePassElement* element)
     return nullptr;
 }
 
-HOOK_FUNCTION(Desktop::View::, CWindowPresentation, opaque, bool, (const Desktop::View::CWindowPresentation* thisptr))
+HOOK_FUNCTION(
+    Desktop::View::,
+    CWindowPresentation,
+    opaque,
+    bool,
+    (const Desktop::View::CWindowPresentation* thisptr, const Render::SWindowRenderPresentation& presentation)
+)
 {
     auto config = g.Manager.GetShaderForElement(thisptr->m_window.m_self.lock());
     if (config && config->ActiveShader->Transparency)
@@ -24,7 +30,13 @@ HOOK_FUNCTION(Desktop::View::, CWindowPresentation, opaque, bool, (const Desktop
     return original(thisptr);
 }
 
-HOOK_FUNCTION(Render::, CRenderPass, render, CRegion, (Render::CRenderPass * thisptr, const CRegion& damage_))
+HOOK_FUNCTION(
+    Render::,
+    CRenderPass,
+    render,
+    CRegion,
+    (Render::CRenderPass * thisptr, Render::CRenderContext& ctx, const CRegion& damage_)
+)
 {
     for (auto& elData : thisptr->m_passElements)
     {
@@ -37,7 +49,7 @@ HOOK_FUNCTION(Render::, CRenderPass, render, CRegion, (Render::CRenderPass * thi
         }
     }
 
-    return original(thisptr, damage_);
+    return original(thisptr, ctx, damage_);
 }
 
 HOOK_FUNCTION(
@@ -45,7 +57,7 @@ HOOK_FUNCTION(
     IElementRenderer,
     drawSurface,
     void,
-    (Render::IElementRenderer * thisptr, WP<CSurfacePassElement> element, const CRegion& damage)
+    (Render::IElementRenderer * thisptr, Render::CRenderContext& ctx, WP<CSurfacePassElement> element, const CRegion& damage)
 )
 {
     Hyprutils::Utils::CScopeGuard _state(
@@ -60,7 +72,7 @@ HOOK_FUNCTION(
     if (g.RenderState.ShaderConfig)
     {
         g.RenderState.Texture = element->m_data.texture;
-        g.RenderState.Uniforms.MonitorScale = g_pHyprRenderer->renderData().pMonitor.lock()->m_scale;
+        g.RenderState.Uniforms.MonitorScale = ctx.m_data.pMonitor.lock()->m_scale;
         if (element->m_data.pWindow)
         {
             g.RenderState.Uniforms.WindowSize = element->m_data.pWindow->m_realSize->value();
@@ -73,7 +85,7 @@ HOOK_FUNCTION(
         }
     }
 
-    original(thisptr, element, damage);
+    original(thisptr, ctx, element, damage);
 }
 
 HOOK_FUNCTION(
@@ -82,6 +94,7 @@ HOOK_FUNCTION(
     renderTextureInternal,
     void,
     (Render::GL::CHyprOpenGLImpl * thisptr,
+     Render::CRenderContext& ctx,
      SP<Render::ITexture> tex,
      const CBox& box,
      const Render::GL::CHyprOpenGLImpl::STextureRenderData& data)
@@ -91,7 +104,7 @@ HOOK_FUNCTION(
     g.RenderState.Active = g.RenderState.ShaderConfig && g.RenderState.Texture == tex;
     Hyprutils::Utils::CScopeGuard _active([&] { g.RenderState.Active = false; });
 
-    original(thisptr, tex, box, data);
+    original(thisptr, ctx, tex, box, data);
 }
 
 HOOK_FUNCTION(
