@@ -22,7 +22,6 @@
 #include <hyprland/src/desktop/DesktopTypes.hpp>
 #include <hyprland/src/desktop/state/FocusState.hpp>
 #include <hyprland/src/desktop/state/ViewState.hpp>
-#include <hyprland/src/desktop/view/window/WindowPresentation.hpp>
 #include <hyprland/src/event/EventBus.hpp>
 #include <hyprland/src/helpers/time/Time.hpp>
 #include <hyprland/src/plugins/PluginAPI.hpp>

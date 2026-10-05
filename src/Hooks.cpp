@@ -16,7 +16,7 @@ static ShadedElement* getShaderForSurfacePass(CSurfacePassElement* element)
 
 HOOK_FUNCTION(Desktop::View::, CWindowPresentation, opaque, bool, (const Desktop::View::CWindowPresentation* thisptr))
 {
-    auto config = g.Manager.GetShaderForElement(thisptr->m_window.m_self.lock());
+    auto config = g.Manager.GetShaderForElement(thisptr->m_self.lock());
     if (config && config->ActiveShader->Transparency)
         // so Hyprland does not try to optimize away the drawing of the background
         return false;
@@ -100,6 +100,7 @@ HOOK_FUNCTION(
     getShaderVariant,
     WP<CShader>,
     (Render::GL::CHyprOpenGLImpl * thisptr, Render::ePreparedFragmentShader frag, const Render::SShaderVariant& variant)
+
 )
 {
     if (!g.RenderState.Active || frag != Render::SH_FRAG_SURFACE)
