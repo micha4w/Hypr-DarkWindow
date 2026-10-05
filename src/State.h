@@ -6,6 +6,7 @@
 #include <hyprutils/utils/ScopeGuard.hpp>
 #include <optional>
 #include <sstream>
+#include <type_traits>
 #include <vector>
 
 #include "CustomShader.h"
@@ -21,10 +22,12 @@
 #include <hyprland/src/desktop/DesktopTypes.hpp>
 #include <hyprland/src/desktop/state/FocusState.hpp>
 #include <hyprland/src/desktop/state/ViewState.hpp>
+#include <hyprland/src/desktop/view/window/WindowPresentation.hpp>
 #include <hyprland/src/event/EventBus.hpp>
 #include <hyprland/src/helpers/time/Time.hpp>
 #include <hyprland/src/plugins/PluginAPI.hpp>
 #include <hyprland/src/pointer/PointerManager.hpp>
+#include <hyprland/src/render/ElementRenderer.hpp>
 #include <hyprland/src/render/Renderer.hpp>
 #include <hyprland/src/render/pass/Pass.hpp>
 #include <hyprland/src/render/pass/PassElement.hpp>
@@ -36,17 +39,20 @@
 #include "ShadeManager.h"
 
 
-#define HOOK_FUNCTION(ns, className, methodName, retType, args)                                   \
-    namespace _ns_##className_##methodName                                                        \
-    {                                                                                             \
-        retType hook args;                                                                        \
-        retType(*original) args = nullptr;                                                        \
-        auto register##className##methodName = []                                                 \
-        {                                                                                         \
-            g.Hooks.push_back({ #ns #className, #methodName, (void**) &original, (void*) hook }); \
-            return true;                                                                          \
-        }();                                                                                      \
-    }                                                                                             \
+#define HOOK_FUNCTION(ns, className, methodName, retType, args)                                     \
+    namespace _ns_##className_##methodName                                                          \
+    {                                                                                               \
+        retType hook args;                                                                          \
+        retType(*original) args = nullptr;                                                          \
+        auto _init = []<class R, class T, class... A>(R (*)(T*, A...))                              \
+        {                                                                                           \
+            using M = std::conditional_t<std::is_const_v<T>, R (T::*)(A...) const, R (T::*)(A...)>; \
+            static_cast<M>(&ns className::methodName);                                              \
+                                                                                                    \
+            g.Hooks.push_back({ #ns #className, #methodName, (void**) &original, (void*) hook });   \
+            return true;                                                                            \
+        }(hook);                                                                                    \
+    }                                                                                               \
     retType _ns_##className_##methodName::hook args
 
 struct State
