@@ -70,6 +70,29 @@ inline static const std::map<std::string, WindowShader> WINDOW_SHADERS = {
             { "targetOpacity", { 0.83 } },
         },
         IntroducesTransparency::Yes } },
+    { "scanner",
+      { R"glsl(
+        uniform float speed;
+        uniform float size;
+        uniform float intensity;
+
+        void windowShader(inout vec4 color) {
+            float dst = clamp(distance(vec2(0.5, 0.5), color.xy)*2.0, 0.0, 1.0);
+
+            dst = abs(fract(sin(dot(vec2(1, ceil(x_PixelPos.y / size + x_Time * speed)),vec2(12.9898,78.233))) * 43758.5453) - 1.0);
+
+            if(dst < intensity)
+            {
+               color = vec4(0.0,0.0,0.0,0.0);
+            }
+        }
+    )glsl",
+        {
+            { "speed", { 30 } },
+            { "size", { 2 } },
+            { "intensity", { 0.15 } },
+        },
+        {} } },
     { "compilation_failed",
       { R"glsl(
         void windowShader(inout vec4 color) {
