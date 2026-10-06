@@ -1,6 +1,9 @@
 #pragma once
 
+#include <dlfcn.h>
+
 #include <any>
+#include <cstring>
 #include <hyprutils/string/ConstVarList.hpp>
 #include <hyprutils/string/String.hpp>
 #include <hyprutils/utils/ScopeGuard.hpp>
@@ -43,13 +46,23 @@
     namespace _ns_##className_##methodName                                                          \
     {                                                                                               \
         retType hook args;                                                                          \
-        retType(*original) args = nullptr;                                                          \
+        retType(*trampoline) args = nullptr;                                                        \
         auto _init = []<class R, class T, class... A>(R (*)(T*, A...))                              \
         {                                                                                           \
             using M = std::conditional_t<std::is_const_v<T>, R (T::*)(A...) const, R (T::*)(A...)>; \
-            static_cast<M>(&ns className::methodName);                                              \
+            auto pmf = static_cast<M>(&ns className::methodName);                                   \
                                                                                                     \
-            g.Hooks.push_back({ #ns #className, #methodName, (void**) &original, (void*) hook });   \
+            void* original;                                                                         \
+            memcpy(&original, &pmf, sizeof(original));                                              \
+                                                                                                    \
+            g.Hooks.push_back(                                                                      \
+                {                                                                                   \
+                    .name = #ns #className "::" #methodName,                                        \
+                    .original = original,                                                           \
+                    .trampolinePtr = (void**) &trampoline,                                          \
+                    .hookFunc = (void*) hook,                                                       \
+                }                                                                                   \
+            );                                                                                      \
             return true;                                                                            \
         }(hook);                                                                                    \
     }                                                                                               \
@@ -104,7 +117,7 @@ struct State
         {
             NotifyError("Failed to load, mismatched versions! (see logs)");
             throw Efmt(
-                "[Hypr-DarkWindow] version mismatch, built against {}, running compositor {}", CLIENT_HASH, COMPOSITOR_HASH
+                "Hypr-DarkWindow", "version mismatch, built against {}, running compositor {}", CLIENT_HASH, COMPOSITOR_HASH
             );
         }
     }
@@ -120,9 +133,9 @@ struct State
 
     struct Hook
     {
-        std::string className;
-        std::string methodName;
-        void** originalPtr;
+        std::string name;
+        void* original;
+        void** trampolinePtr;
         void* hookFunc;
         CFunctionHook* hypr;
     };
@@ -132,22 +145,18 @@ struct State
     {
         for (auto& hook : Hooks)
         {
-            auto all = HyprlandAPI::findFunctionsByName(Handle, hook.methodName);
-            auto found = std::find_if(
-                all.begin(),
-                all.end(),
-                [&](const SFunctionMatch& line)
-                { return line.demangled.starts_with(hook.className + "::" + hook.methodName + "("); }
-            );
+            std::string name = hook.name;
+            Dl_info info;
+            if (dladdr(hook.original, &info) && info.dli_sname)
+                name += " (" + std::string(info.dli_sname) + ")";
 
-            if (found == all.end())
-                throw Efmt("Failed to find {}::{}", hook.className, hook.methodName);
+            Log::logger->log(Log::INFO, "Hypr-DarkWindow", "Hooking {} at {}", name, hook.original);
 
-            hook.hypr = HyprlandAPI::createFunctionHook(Handle, found->address, hook.hookFunc);
+            hook.hypr = HyprlandAPI::createFunctionHook(Handle, hook.original, hook.hookFunc);
             if (!hook.hypr->hook())
-                throw Efmt("Failed to hook {}::{}", hook.className, hook.methodName);
+                throw Efmt("Failed to hook {}", name);
 
-            *hook.originalPtr = hook.hypr->m_original;
+            *hook.trampolinePtr = hook.hypr->m_original;
         }
     };
 
@@ -195,14 +204,13 @@ struct State
 
     void NotifyError(const std::string& err)
     {
-        std::string msg = std::string("[Hypr-DarkWindow] ") + err;
-        Log::logger->log(Log::ERR, msg);
-        HyprlandAPI::addNotification(Handle, msg, CHyprColor(0xFFFF0000), 25'000);
+        Log::logger->log(Log::ERR, "Hypr-DarkWindow", err);
+        HyprlandAPI::addNotification(Handle, "[Hypr-DarkWindow] " + err, CHyprColor(0xFFFF0000), 25'000);
     }
 
     auto HandleError(auto f)
     {
-        return [&](std::string args)
+        return [this, f](std::string args)
         {
             try
             {

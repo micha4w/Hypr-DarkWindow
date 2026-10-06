@@ -226,7 +226,7 @@ void main() {
     {
         if (!testShader->createProgram(Render::GL::g_pHyprOpenGL->m_shaders->TEXVERTSRC, testFrag, true, true))
         {
-            Log::logger->log(Log::ERR, "[Hypr-DarkWindow] Failed to compile this Shader: {}", testFrag);
+            Log::logger->log(Log::ERR, "Hypr-DarkWindow", "Failed to compile this Shader: {}", testFrag);
             throw g.Efmt("Failed to compile Shader with Test Source, check logs for details");
         }
 
