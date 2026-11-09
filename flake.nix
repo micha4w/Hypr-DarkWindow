@@ -38,6 +38,8 @@
               ];
             };
 
+            enableParallelBuilding = true;
+
             nativeBuildInputs = with pkgs; [ pkg-config ];
             buildInputs = [ hyprlandPackage.dev ] ++ hyprlandPackage.buildInputs;
 
