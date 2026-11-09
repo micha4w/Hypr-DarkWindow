@@ -146,6 +146,9 @@ ShaderInstance* ShadeManager::AddShader(ShaderDefinition&& def)
         if (def.Path != "")
         {
             std::ifstream file(def.Path);
+            if (!file.is_open())
+                throw g.Efmt("Failed to read shader file {}: {}", def.Path, std::strerror(errno));
+
             std::string source = "// Your custom User Shader Code:\n";
             source += std::string(std::istreambuf_iterator(file), {});
 
